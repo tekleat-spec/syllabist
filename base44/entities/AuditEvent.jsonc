@@ -1,0 +1,40 @@
+{
+  "name": "AuditEvent",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "description": "Type of event that occurred"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warning",
+        "critical"
+      ],
+      "default": "info",
+      "description": "Severity level of the event"
+    },
+    "entity_kind": {
+      "type": "string",
+      "enum": [
+        "mission",
+        "goal",
+        "memory",
+        "thread",
+        "system"
+      ],
+      "description": "Kind of entity related to the event"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of what happened"
+    }
+  },
+  "required": [
+    "event_type",
+    "entity_kind",
+    "description"
+  ]
+}

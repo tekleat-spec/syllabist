@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, BookOpen, Calendar, GraduationCap, 
-  FileText, Upload, ChevronLeft, ChevronRight
+  FileText, Upload, ChevronLeft, ChevronRight, ScrollText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/grades', icon: GraduationCap, label: 'Grades' },
   { path: '/documents', icon: FileText, label: 'Documents' },
   { path: '/upload', icon: Upload, label: 'Upload' },
+  { path: '/audit', icon: ScrollText, label: 'Audit Log' },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {

@@ -13,6 +13,7 @@ import CalendarPage from '@/pages/CalendarPage';
 import Grades from '@/pages/Grades';
 import Documents from '@/pages/Documents';
 import Upload from '@/pages/Upload';
+import AuditLog from '@/pages/AuditLog';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -43,6 +44,7 @@ const AuthenticatedApp = () => {
         <Route path="/grades" element={<Grades />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/upload" element={<Upload />} />
+        <Route path="/audit" element={<AuditLog />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
