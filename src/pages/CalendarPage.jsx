@@ -58,7 +58,21 @@ export default function CalendarPage() {
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  const getEventsForDay = (day) => allEvents.filter(e => e.start_date && isSameDay(new Date(e.start_date), day));
+  // Parse date strings safely — "YYYY-MM-DD" must be treated as local time, not UTC
+  const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+    // If it's a date-only string (no time), parse as local to avoid UTC offset shifting the day
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return new Date(dateStr);
+  };
+
+  const getEventsForDay = (day) => allEvents.filter(e => {
+    const d = parseDate(e.start_date);
+    return d && isSameDay(d, day);
+  });
 
   const [selectedDay, setSelectedDay] = useState(null);
   const selectedEvents = selectedDay ? getEventsForDay(selectedDay) : [];
