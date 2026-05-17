@@ -1,0 +1,37 @@
+{
+  "name": "Course",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Course name"
+    },
+    "code": {
+      "type": "string",
+      "description": "Course code (e.g. CS101)"
+    },
+    "professor": {
+      "type": "string",
+      "description": "Professor name"
+    },
+    "semester": {
+      "type": "string",
+      "description": "Semester (e.g. Fall 2026)"
+    },
+    "color": {
+      "type": "string",
+      "description": "Color tag for the course"
+    },
+    "syllabus_url": {
+      "type": "string",
+      "description": "URL of uploaded syllabus file"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the course"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

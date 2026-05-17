@@ -1,0 +1,67 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Document title"
+    },
+    "course_id": {
+      "type": "string",
+      "description": "Reference to Course entity"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "syllabus",
+        "slides",
+        "notes",
+        "pdf",
+        "study_guide",
+        "paper_draft",
+        "announcement",
+        "other"
+      ],
+      "description": "Type of document"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "content_summary": {
+      "type": "string",
+      "description": "AI-generated summary of the document content"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploaded",
+        "processing",
+        "processed",
+        "error"
+      ],
+      "default": "uploaded",
+      "description": "Processing status"
+    },
+    "generated_content": {
+      "type": "string",
+      "description": "AI-generated content (study guide, paper draft, etc.)"
+    },
+    "generation_type": {
+      "type": "string",
+      "enum": [
+        "study_guide",
+        "paper_draft",
+        "summary",
+        "flashcards",
+        "outline",
+        "none"
+      ],
+      "default": "none",
+      "description": "Type of AI content generated"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

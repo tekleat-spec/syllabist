@@ -1,0 +1,76 @@
+{
+  "name": "Assignment",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Assignment title"
+    },
+    "course_id": {
+      "type": "string",
+      "description": "Reference to Course entity"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "homework",
+        "exam",
+        "quiz",
+        "project",
+        "paper",
+        "presentation",
+        "lab",
+        "reading",
+        "other"
+      ],
+      "description": "Type of assignment"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Due date and time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "upcoming",
+        "in_progress",
+        "submitted",
+        "graded",
+        "late",
+        "missed"
+      ],
+      "default": "upcoming",
+      "description": "Current status"
+    },
+    "weight": {
+      "type": "number",
+      "description": "Weight as percentage of final grade"
+    },
+    "grade": {
+      "type": "number",
+      "description": "Grade received (0-100)"
+    },
+    "max_points": {
+      "type": "number",
+      "description": "Maximum points possible"
+    },
+    "points_earned": {
+      "type": "number",
+      "description": "Points earned"
+    },
+    "description": {
+      "type": "string",
+      "description": "Assignment description or instructions"
+    },
+    "alert_before_hours": {
+      "type": "number",
+      "description": "Hours before due date to send alert",
+      "default": 24
+    }
+  },
+  "required": [
+    "title",
+    "course_id"
+  ]
+}

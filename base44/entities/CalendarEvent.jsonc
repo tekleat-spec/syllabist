@@ -1,0 +1,54 @@
+{
+  "name": "CalendarEvent",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Event title"
+    },
+    "course_id": {
+      "type": "string",
+      "description": "Reference to Course entity"
+    },
+    "assignment_id": {
+      "type": "string",
+      "description": "Reference to Assignment entity if applicable"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "deadline",
+        "exam",
+        "class",
+        "study_session",
+        "office_hours",
+        "reminder",
+        "other"
+      ],
+      "description": "Type of calendar event"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event start date/time"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event end date/time"
+    },
+    "description": {
+      "type": "string",
+      "description": "Event description"
+    },
+    "alert_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether alert has been sent"
+    }
+  },
+  "required": [
+    "title",
+    "start_date"
+  ]
+}
