@@ -1,0 +1,62 @@
+{
+  "name": "WorkshopItem",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string",
+      "description": "Reference to Course entity"
+    },
+    "assignment_id": {
+      "type": "string",
+      "description": "Reference to Assignment entity"
+    },
+    "assignment_name": {
+      "type": "string",
+      "description": "Name of the assignment folder (if not linked to an existing assignment)"
+    },
+    "item_type": {
+      "type": "string",
+      "enum": [
+        "instructions",
+        "pdf",
+        "slides",
+        "url",
+        "video_url",
+        "other"
+      ],
+      "description": "Type of uploaded material"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title or label for this item"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "source_url": {
+      "type": "string",
+      "description": "Web URL or video link if not a file upload"
+    },
+    "extracted_text": {
+      "type": "string",
+      "description": "Extracted/fetched text content from the material"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploaded",
+        "processing",
+        "ready",
+        "error"
+      ],
+      "default": "uploaded"
+    }
+  },
+  "required": [
+    "course_id",
+    "assignment_name",
+    "item_type",
+    "title"
+  ]
+}

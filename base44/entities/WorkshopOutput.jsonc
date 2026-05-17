@@ -1,0 +1,41 @@
+{
+  "name": "WorkshopOutput",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string",
+      "description": "Reference to Course entity"
+    },
+    "assignment_name": {
+      "type": "string",
+      "description": "Name of the assignment this output belongs to"
+    },
+    "draft": {
+      "type": "string",
+      "description": "AI-generated full draft submission"
+    },
+    "study_aids": {
+      "type": "string",
+      "description": "AI-generated study aids (outline, key points, notes)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "generating",
+        "done",
+        "error"
+      ],
+      "default": "pending"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the output was last generated"
+    }
+  },
+  "required": [
+    "course_id",
+    "assignment_name"
+  ]
+}
