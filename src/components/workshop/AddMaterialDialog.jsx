@@ -7,12 +7,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { base44 } from '@/api/base44Client';
 import { Loader2, Upload } from 'lucide-react';
 
+async function analyzeItem(item) {
+  const fileUrls = item.file_url ? [item.file_url] : [];
+  const urlContext = item.source_url ? `URL to analyze: ${item.source_url}` : '';
+
+  const prompt = `You are an expert academic analyst. Analyze the following study material titled "${item.title}" (type: ${item.item_type}).
+
+${urlContext}
+
+Produce exactly three sections with these exact headers:
+
+---SUMMARY---
+Write a concise but thorough 2-4 paragraph summary of what this material contains. Explain the main topic, purpose, and overall structure.
+
+---KEY INFO---
+Extract and list all important facts, concepts, definitions, arguments, data points, and takeaways as a well-organized bullet list. Group related items under sub-headers if appropriate.
+
+---OUTLINE---
+Create a structured hierarchical outline of the material with main sections (I, II, III…) and sub-points (A, B, C…). Reflect the actual structure and flow of the content.`;
+
+  const result = await base44.integrations.Core.InvokeLLM({
+    prompt,
+    file_urls: fileUrls.length > 0 ? fileUrls : undefined,
+    add_context_from_internet: !!item.source_url,
+    model: item.source_url ? 'gemini_3_flash' : 'claude_sonnet_4_6',
+  });
+
+  const summaryMatch = result.match(/---SUMMARY---([\s\S]*?)(?:---KEY INFO---|$)/);
+  const keyMatch = result.match(/---KEY INFO---([\s\S]*?)(?:---OUTLINE---|$)/);
+  const outlineMatch = result.match(/---OUTLINE---([\s\S]*?)$/);
+
+  return {
+    summary: summaryMatch ? summaryMatch[1].trim() : result,
+    key_info: keyMatch ? keyMatch[1].trim() : '',
+    outline: outlineMatch ? outlineMatch[1].trim() : '',
+    status: 'ready',
+  };
+}
+
 export default function AddMaterialDialog({ open, onClose, courseId, assignmentName, onAdded }) {
   const [itemType, setItemType] = useState('pdf');
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
   const [sourceUrl, setSourceUrl] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadStage, setUploadStage] = useState('');
 
   const isFileType = ['pdf', 'slides', 'other', 'instructions'].includes(itemType);
   const isUrlType = ['url', 'video_url'].includes(itemType);
@@ -20,6 +59,7 @@ export default function AddMaterialDialog({ open, onClose, courseId, assignmentN
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setUploading(true);
+    setUploadStage('Uploading…');
 
     let file_url = '';
     if (isFileType && file) {
@@ -27,26 +67,39 @@ export default function AddMaterialDialog({ open, onClose, courseId, assignmentN
       file_url = res.file_url;
     }
 
-    await base44.entities.WorkshopItem.create({
+    // Create item with processing status
+    const item = await base44.entities.WorkshopItem.create({
       course_id: courseId,
       assignment_name: assignmentName,
       item_type: itemType,
       title: title.trim(),
       file_url: file_url || undefined,
       source_url: isUrlType ? sourceUrl.trim() : undefined,
-      status: 'uploaded',
+      status: 'processing',
     });
 
-    setUploading(false);
+    // Notify parent so it shows the card immediately with "Analyzing" state
+    onAdded();
+    onClose();
+
+    // Reset form
     setTitle('');
     setFile(null);
     setSourceUrl('');
+    setUploading(false);
+    setUploadStage('');
+
+    // Run analysis in background and update the item
+    setUploadStage('Analyzing…');
+    const analysis = await analyzeItem(item);
+    await base44.entities.WorkshopItem.update(item.id, analysis);
+
+    // Notify parent again so it refreshes with full analysis
     onAdded();
-    onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={v => { if (!uploading) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Material</DialogTitle>
@@ -86,11 +139,14 @@ export default function AddMaterialDialog({ open, onClose, courseId, assignmentN
             </div>
           )}
         </div>
+
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={uploading}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={uploading || !title.trim()}>
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-            Add
+            {uploading
+              ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />{uploadStage}</>
+              : <><Upload className="w-4 h-4 mr-2" />Add & Analyze</>
+            }
           </Button>
         </div>
       </DialogContent>

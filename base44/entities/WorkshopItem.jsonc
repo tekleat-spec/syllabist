@@ -8,11 +8,11 @@
     },
     "assignment_id": {
       "type": "string",
-      "description": "Reference to Assignment entity"
+      "description": "Reference to Assignment entity if applicable"
     },
     "assignment_name": {
       "type": "string",
-      "description": "Name of the assignment folder (if not linked to an existing assignment)"
+      "description": "Name of the assignment folder"
     },
     "item_type": {
       "type": "string",
@@ -36,11 +36,23 @@
     },
     "source_url": {
       "type": "string",
-      "description": "Web URL or video link if not a file upload"
+      "description": "Web URL or video link"
     },
     "extracted_text": {
       "type": "string",
-      "description": "Extracted/fetched text content from the material"
+      "description": "Raw extracted text content"
+    },
+    "summary": {
+      "type": "string",
+      "description": "AI-generated summary of the material"
+    },
+    "key_info": {
+      "type": "string",
+      "description": "AI-extracted key information, facts, and concepts"
+    },
+    "outline": {
+      "type": "string",
+      "description": "AI-generated outline of the material"
     },
     "status": {
       "type": "string",
