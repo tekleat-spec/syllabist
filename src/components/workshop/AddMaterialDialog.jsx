@@ -11,52 +11,38 @@ async function analyzeItem(item) {
   const fileUrls = item.file_url ? [item.file_url] : [];
   const urlContext = item.source_url ? `URL to analyze: ${item.source_url}` : '';
 
-  const isInstructions = item.item_type === 'instructions';
-
-  const prompt = isInstructions
-    ? `You are an expert academic document analyst. You are reading an assignment instructions document titled "${item.title}".
+  const prompt = `You are an expert academic document analyst. You are reading a document titled "${item.title}".
 
 ${urlContext}
 
-CRITICAL RULE: Only extract and report information that is EXPLICITLY written in the document. Do NOT invent, assume, or add anything not directly stated. Quote or closely paraphrase the actual text wherever possible.
+FIRST: Determine if this document is (A) assignment instructions/a prompt telling the student what to do, or (B) study material/reference content (lecture notes, readings, textbook, slides, etc.).
 
-Produce exactly three sections with these exact headers:
-
----SUMMARY---
-In 1-2 paragraphs, describe exactly what this assignment is asking the student to do, based solely on what is written in the document. State the assignment type, topic, and overall objective as described.
-
----KEY INFO---
-Extract ONLY information explicitly stated in the document. Use these sub-sections (omit any that are not mentioned in the document):
-**Assignment Requirements:** List every specific task, question, or deliverable the student must complete, quoted or closely paraphrased from the document.
-**Formatting Rules:** Page count, word count, font, spacing, citation style, file format — only if stated.
-**Deadlines & Dates:** Any due dates, milestone dates, or submission windows explicitly mentioned.
-**Grading Criteria:** Any rubric details, point values, or grading breakdown explicitly stated.
-**Resources Required:** Any specified readings, sources, or materials the student must use.
-**Prohibited Items:** Anything explicitly forbidden (e.g., no outside sources, no first-person, etc.).
-
----OUTLINE---
-Create a suggested structural outline for completing this assignment, derived directly from the requirements listed in the document. Each section heading should map to an explicit requirement or deliverable stated in the instructions.`
-
-    : `You are an expert academic analyst. Analyze the following study material titled "${item.title}" (type: ${item.item_type}).
-
-${urlContext}
-
-Produce exactly three sections with these exact headers:
+Then produce exactly three sections with these exact headers:
 
 ---SUMMARY---
-Write a concise but thorough 2-4 paragraph summary of what this material contains. Explain the main topic, purpose, and overall structure.
+If this is ASSIGNMENT INSTRUCTIONS: In 1-2 paragraphs, describe exactly what this assignment is asking the student to do. State the assignment type, topic, and overall objective as described. Start with "**[Assignment Instructions]**".
+If this is STUDY MATERIAL: Write a concise 2-4 paragraph summary of the main topic, purpose, and overall structure. Start with "**[Study Material]**".
 
 ---KEY INFO---
-Extract and list all important facts, concepts, definitions, arguments, data points, and takeaways as a well-organized bullet list. Group related items under sub-headers if appropriate.
+If this is ASSIGNMENT INSTRUCTIONS: Extract ONLY information explicitly stated. Use these sub-sections (omit any not mentioned):
+**Assignment Requirements:** Every task/deliverable the student must complete.
+**Formatting Rules:** Page/word count, font, spacing, citation style — only if stated.
+**Deadlines & Dates:** Any due dates or submission windows explicitly mentioned.
+**Grading Criteria:** Any rubric details or point values explicitly stated.
+**Prohibited Items:** Anything explicitly forbidden.
+
+If this is STUDY MATERIAL: Extract all important facts, concepts, definitions, arguments, and key takeaways as a well-organized bullet list.
 
 ---OUTLINE---
-Create a structured hierarchical outline of the material with main sections (I, II, III…) and sub-points (A, B, C…). Reflect the actual structure and flow of the content.`;
+If this is ASSIGNMENT INSTRUCTIONS: A suggested structural outline for completing the assignment, mapped to the explicit requirements.
+If this is STUDY MATERIAL: A structured hierarchical outline (I, II, III / A, B, C) reflecting the actual content structure.`;
 
+  const useInternet = !!item.source_url;
   const result = await base44.integrations.Core.InvokeLLM({
     prompt,
     file_urls: fileUrls.length > 0 ? fileUrls : undefined,
-    add_context_from_internet: !!item.source_url && !isInstructions,
-    model: (item.source_url && !isInstructions) ? 'gemini_3_flash' : 'claude_sonnet_4_6',
+    add_context_from_internet: useInternet,
+    model: useInternet ? 'gemini_3_flash' : 'claude_sonnet_4_6',
   });
 
   const summaryMatch = result.match(/---SUMMARY---([\s\S]*?)(?:---KEY INFO---|$)/);
@@ -72,7 +58,7 @@ Create a structured hierarchical outline of the material with main sections (I, 
 }
 
 export default function AddMaterialDialog({ open, onClose, courseId, assignmentName, onAdded }) {
-  const [itemType, setItemType] = useState('instructions');
+  const [itemType, setItemType] = useState('pdf');
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
   const [sourceUrl, setSourceUrl] = useState('');
