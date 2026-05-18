@@ -1,0 +1,210 @@
+import { useState, useEffect, useRef } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
+import { Send, Sparkles, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { format, isFuture, differenceInDays } from 'date-fns';
+import TutorMessage from '@/components/tutor/TutorMessage';
+
+const WELCOME = {
+  role: 'assistant',
+  content: `👋 Hi! I'm your AI study tutor. I have full context of your courses, assignments, documents, and grades.
+
+Ask me anything — help with assignments, explain concepts, quiz you on material, summarize documents, check upcoming deadlines, or anything else you need to study smarter.`,
+};
+
+function buildContext({ courses, assignments, documents, workshopItems }) {
+  const lines = [];
+
+  if (courses.length > 0) {
+    lines.push('## Enrolled Courses');
+    courses.forEach(c => {
+      lines.push(`- **${c.name}** (${c.code || 'no code'}) — Prof: ${c.professor || 'unknown'}, Semester: ${c.semester || 'unknown'}`);
+    });
+  }
+
+  const upcoming = assignments
+    .filter(a => a.due_date && isFuture(new Date(a.due_date)) && a.status !== 'submitted' && a.status !== 'graded')
+    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+
+  if (upcoming.length > 0) {
+    lines.push('\n## Upcoming Assignments / Deadlines');
+    upcoming.forEach(a => {
+      const course = courses.find(c => c.id === a.course_id);
+      const days = differenceInDays(new Date(a.due_date), new Date());
+      lines.push(`- **${a.title}** [${course?.name || 'Unknown'}] — Due: ${format(new Date(a.due_date), 'MMM d, yyyy')} (${days} days) — Status: ${a.status} — Type: ${a.type || 'unknown'}`);
+    });
+  }
+
+  const graded = assignments.filter(a => a.grade != null);
+  if (graded.length > 0) {
+    lines.push('\n## Grades');
+    graded.forEach(a => {
+      const course = courses.find(c => c.id === a.course_id);
+      lines.push(`- **${a.title}** [${course?.name || 'Unknown'}] — Grade: ${a.grade}${a.max_points ? `/${a.max_points}` : ''}`);
+    });
+  }
+
+  if (documents.length > 0) {
+    lines.push('\n## Uploaded Documents');
+    documents.forEach(d => {
+      const course = courses.find(c => c.id === d.course_id);
+      lines.push(`- **${d.title}** [${course?.name || 'Unknown'}] (${d.type || 'doc'})${d.content_summary ? ` — Summary: ${d.content_summary.slice(0, 200)}` : ''}`);
+    });
+  }
+
+  if (workshopItems.length > 0) {
+    lines.push('\n## Workshop Study Materials');
+    workshopItems.forEach(w => {
+      const course = courses.find(c => c.id === w.course_id);
+      lines.push(`- **${w.title}** [${course?.name || 'Unknown'}] — Assignment: ${w.assignment_name}${w.summary ? ` — Summary: ${w.summary.slice(0, 200)}` : ''}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+export default function AiTutor() {
+  const [messages, setMessages] = useState([WELCOME]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  const { data: courses = [] } = useQuery({ queryKey: ['courses'], queryFn: () => base44.entities.Course.list() });
+  const { data: assignments = [] } = useQuery({ queryKey: ['assignments'], queryFn: () => base44.entities.Assignment.list() });
+  const { data: documents = [] } = useQuery({ queryKey: ['documents'], queryFn: () => base44.entities.Document.list() });
+  const { data: workshopItems = [] } = useQuery({ queryKey: ['workshopItems'], queryFn: () => base44.entities.WorkshopItem.list() });
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+
+    const userMsg = { role: 'user', content: text };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+
+    const context = buildContext({ courses, assignments, documents, workshopItems });
+
+    const systemPrompt = `You are StudyBuddy, a knowledgeable and encouraging AI tutor. You have full access to this student's academic data.
+
+${context ? `Here is the student's current academic context:\n\n${context}` : 'The student has no courses or assignments loaded yet.'}
+
+Guidelines:
+- Be concise but thorough. Use markdown formatting (bold, lists, headers) where helpful.
+- If asked about a specific assignment or document, reference the actual data above.
+- If asked to quiz the student, create relevant questions based on their materials.
+- Always be encouraging and supportive.
+- If the student asks something you don't have data for, be honest about what you know vs. don't know.`;
+
+    const history = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role, content: m.content }));
+
+    history.push({ role: 'user', content: text });
+
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `${systemPrompt}\n\n---\nConversation so far:\n${history.map(m => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`).join('\n\n')}\n\nTutor:`,
+    });
+
+    setMessages(prev => [...prev, { role: 'assistant', content: typeof result === 'string' ? result : result?.response || 'Sorry, I had trouble responding.' }]);
+    setLoading(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  };
+
+  const suggestedPrompts = [
+    "What assignments are due soon?",
+    "Quiz me on my most recent study material",
+    "Summarize my grades so far",
+    "Help me make a study plan for this week",
+  ];
+
+  const showSuggestions = messages.length === 1;
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)]">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-6 py-4 border-b border-border flex-shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-primary-foreground" />
+        </div>
+        <div>
+          <h1 className="font-semibold text-foreground">AI Study Tutor</h1>
+          <p className="text-xs text-muted-foreground">{courses.length} courses · {assignments.length} assignments · {documents.length} documents loaded</p>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+        {messages.map((msg, i) => (
+          <TutorMessage key={i} message={msg} />
+        ))}
+
+        {showSuggestions && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            {suggestedPrompts.map(p => (
+              <button
+                key={p}
+                onClick={() => { setInput(p); textareaRef.current?.focus(); }}
+                className="text-xs px-3 py-1.5 rounded-full border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <div className="flex gap-1 items-center text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Thinking…</span>
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-border">
+        <div className="flex items-end gap-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask your tutor anything…"
+            rows={1}
+            className="flex-1 bg-transparent text-sm resize-none outline-none text-foreground placeholder:text-muted-foreground max-h-40"
+            style={{ height: 'auto', minHeight: '24px' }}
+            onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+          />
+          <Button
+            size="icon"
+            onClick={send}
+            disabled={!input.trim() || loading}
+            className="flex-shrink-0 h-8 w-8 rounded-lg"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground text-center mt-2">Press Enter to send · Shift+Enter for new line</p>
+      </div>
+    </div>
+  );
+}

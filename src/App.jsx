@@ -15,6 +15,7 @@ import Documents from '@/pages/Documents';
 import Upload from '@/pages/Upload';
 import AuditLog from '@/pages/AuditLog';
 import AssignmentsWorkshop from '@/pages/AssignmentsWorkshop';
+import AiTutor from '@/pages/AiTutor';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -39,7 +40,8 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<AiTutor />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/grades" element={<Grades />} />

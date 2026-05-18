@@ -1,14 +1,15 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, BookOpen, Calendar, GraduationCap, 
+  Sparkles, LayoutDashboard, BookOpen, Calendar, GraduationCap, 
   FileText, Upload, ChevronLeft, ChevronRight, ScrollText, Wrench
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 const navItems = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/', icon: Sparkles, label: 'AI Tutor' },
+  { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/courses', icon: BookOpen, label: 'Courses' },
   { path: '/calendar', icon: Calendar, label: 'Calendar' },
   { path: '/grades', icon: GraduationCap, label: 'Grades' },
@@ -32,7 +33,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       <div className="h-16 flex items-center px-5 border-b border-sidebar-border">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <GraduationCap className="w-4.5 h-4.5 text-primary-foreground" />
+            <GraduationCap className="w-4 h-4 text-primary-foreground" />
           </div>
           {!collapsed && (
             <motion.span 
@@ -47,7 +48,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-1">
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {navItems.map(({ path, icon: Icon, label }) => {
           const isActive = location.pathname === path;
           return (
