@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Send, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Sparkles, Loader2, Paperclip, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, isFuture, differenceInDays } from 'date-fns';
 import TutorMessage from '@/components/tutor/TutorMessage';
@@ -68,8 +68,11 @@ export default function AiTutor() {
   const [messages, setMessages] = useState([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [attachments, setAttachments] = useState([]); // [{name, url, isImage}]
+  const [uploading, setUploading] = useState(false);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const { data: courses = [] } = useQuery({ queryKey: ['courses'], queryFn: () => base44.entities.Course.list() });
   const { data: assignments = [] } = useQuery({ queryKey: ['assignments'], queryFn: () => base44.entities.Assignment.list() });
@@ -80,13 +83,29 @@ export default function AiTutor() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    for (const file of files) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const isImage = file.type.startsWith('image/');
+      setAttachments(prev => [...prev, { name: file.name, url: file_url, isImage }]);
+    }
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const removeAttachment = (idx) => setAttachments(prev => prev.filter((_, i) => i !== idx));
+
   const send = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if ((!text && attachments.length === 0) || loading) return;
 
-    const userMsg = { role: 'user', content: text };
+    const userMsg = { role: 'user', content: text, attachments: [...attachments] };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setAttachments([]);
     setLoading(true);
 
     const context = buildContext({ courses, assignments, documents, workshopItems });
@@ -108,8 +127,11 @@ Guidelines:
 
     history.push({ role: 'user', content: text });
 
+    const fileUrls = userMsg.attachments?.map(a => a.url) || [];
+
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `${systemPrompt}\n\n---\nConversation so far:\n${history.map(m => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`).join('\n\n')}\n\nTutor:`,
+      ...(fileUrls.length > 0 && { file_urls: fileUrls }),
     });
 
     setMessages(prev => [...prev, { role: 'assistant', content: typeof result === 'string' ? result : result?.response || 'Sorry, I had trouble responding.' }]);
@@ -122,6 +144,8 @@ Guidelines:
       send();
     }
   };
+
+  const canSend = (input.trim() || attachments.length > 0) && !loading && !uploading;
 
   const suggestedPrompts = [
     "What assignments are due soon?",
@@ -182,7 +206,42 @@ Guidelines:
 
       {/* Input */}
       <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-border">
+        {/* Attachment previews */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {attachments.map((a, i) => (
+              <div key={i} className="relative flex items-center gap-1.5 bg-muted rounded-lg px-2 py-1 text-xs text-foreground">
+                {a.isImage
+                  ? <img src={a.url} alt={a.name} className="h-8 w-8 rounded object-cover" />
+                  : <Paperclip className="w-3 h-3 text-muted-foreground" />
+                }
+                <span className="max-w-[100px] truncate">{a.name}</span>
+                <button onClick={() => removeAttachment(i)} className="text-muted-foreground hover:text-foreground ml-1">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-end gap-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.txt,.pptx,.xlsx,.csv"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+          </button>
+
           <textarea
             ref={textareaRef}
             value={input}
@@ -197,13 +256,13 @@ Guidelines:
           <Button
             size="icon"
             onClick={send}
-            disabled={!input.trim() || loading}
+            disabled={!canSend}
             className="flex-shrink-0 h-8 w-8 rounded-lg"
           >
             <Send className="w-3.5 h-3.5" />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">Press Enter to send · Shift+Enter for new line</p>
+        <p className="text-xs text-muted-foreground text-center mt-2">Press Enter to send · Shift+Enter for new line · 📎 attach files</p>
       </div>
     </div>
   );

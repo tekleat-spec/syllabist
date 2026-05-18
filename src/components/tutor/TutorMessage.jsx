@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown';
-import { Sparkles, User } from 'lucide-react';
+import { Sparkles, User, Paperclip } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function TutorMessage({ message }) {
@@ -13,11 +13,26 @@ export default function TutorMessage({ message }) {
         </div>
       )}
 
-      <div className={cn('max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
-        isUser
-          ? 'bg-primary text-primary-foreground rounded-br-sm'
-          : 'bg-card border border-border rounded-bl-sm text-foreground'
-      )}>
+      <div className={cn('max-w-[80%] flex flex-col gap-2')}>
+        {/* Attachments */}
+        {isUser && message.attachments?.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-end">
+            {message.attachments.map((a, i) => (
+              a.isImage
+                ? <img key={i} src={a.url} alt={a.name} className="max-h-48 max-w-xs rounded-xl object-cover border border-border" />
+                : <div key={i} className="flex items-center gap-1.5 bg-muted rounded-lg px-2 py-1 text-xs text-foreground">
+                    <Paperclip className="w-3 h-3 text-muted-foreground" />
+                    <span className="max-w-[160px] truncate">{a.name}</span>
+                  </div>
+            ))}
+          </div>
+        )}
+        <div className={cn('rounded-2xl px-4 py-3 text-sm leading-relaxed',
+          isUser
+            ? 'bg-primary text-primary-foreground rounded-br-sm'
+            : 'bg-card border border-border rounded-bl-sm text-foreground',
+          isUser && !message.content && 'hidden'
+        )}>
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
@@ -44,6 +59,7 @@ export default function TutorMessage({ message }) {
             {message.content}
           </ReactMarkdown>
         )}
+        </div>
       </div>
 
       {isUser && (
