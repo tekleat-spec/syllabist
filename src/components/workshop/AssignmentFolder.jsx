@@ -136,9 +136,9 @@ export default function AssignmentFolder({ courseId, assignmentName }) {
   return (
     <div className="border border-border rounded-lg overflow-hidden">
       {/* Folder header — dropdown toggle */}
-      <button
+      <div
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 bg-muted/40 hover:bg-muted/70 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 bg-muted/40 hover:bg-muted/70 transition-colors cursor-pointer"
       >
         {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
         <span className="font-medium text-sm flex-1">{assignmentName}</span>
@@ -151,7 +151,7 @@ export default function AssignmentFolder({ courseId, assignmentName }) {
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
         )}
-      </button>
+      </div>
 
       {open && innerContent}
 

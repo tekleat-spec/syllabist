@@ -72,7 +72,7 @@ Create a structured hierarchical outline of the material with main sections (I, 
 }
 
 export default function AddMaterialDialog({ open, onClose, courseId, assignmentName, onAdded }) {
-  const [itemType, setItemType] = useState('pdf');
+  const [itemType, setItemType] = useState('instructions');
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
   const [sourceUrl, setSourceUrl] = useState('');
