@@ -16,6 +16,7 @@ import Upload from '@/pages/Upload';
 import AuditLog from '@/pages/AuditLog';
 import AssignmentsWorkshop from '@/pages/AssignmentsWorkshop';
 import AiTutor from '@/pages/AiTutor';
+import StudyScheduler from '@/pages/StudyScheduler';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -49,6 +50,7 @@ const AuthenticatedApp = () => {
         <Route path="/upload" element={<Upload />} />
         <Route path="/audit" element={<AuditLog />} />
         <Route path="/workshop" element={<AssignmentsWorkshop />} />
+        <Route path="/scheduler" element={<StudyScheduler />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
