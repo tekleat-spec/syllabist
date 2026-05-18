@@ -38,33 +38,38 @@ export default function WorkshopOutputPanel({ courseId, assignmentName, items, o
 
     const prompt = `You are an expert academic writing assistant. Your job is to draft a complete, submission-ready assignment response.
 
+CRITICAL RULES:
+- The draft must be grounded ONLY in what the instructions explicitly require and what the study materials actually contain.
+- Do NOT invent facts, sources, data, or requirements not present in the provided materials.
+- If the instructions specify a format, length, citation style, or structure — follow it exactly.
+- Every claim in the draft must be traceable to the instructions or study materials below.
+
 ASSIGNMENT NAME: "${assignmentName}"
 
-===ASSIGNMENT INSTRUCTIONS===
-${instructionsContext || 'No explicit instructions uploaded — infer the assignment requirements from the study materials below.'}
+===ASSIGNMENT INSTRUCTIONS (extracted directly from uploaded document)===
+${instructionsContext || 'No instructions uploaded — base the draft on the study materials only.'}
 
-===STUDY MATERIALS & SOURCES===
+===STUDY MATERIALS & SOURCE CONTENT===
 ${materialsContext || 'No additional study materials provided — work from the instructions alone.'}
 
 ===YOUR TASK===
 Produce exactly TWO sections using these exact headers:
 
 ---DRAFT---
-Write a complete, polished, submission-ready assignment draft that directly fulfills every requirement in the instructions.
-- Read the instructions carefully and address every question, prompt, or requirement.
-- Use the study materials as your primary evidence and source content.
-- Structure the response appropriately for the assignment type (essay, report, answers, etc.).
-- Use an academic tone, well-organized paragraphs, and cite materials where relevant.
-- Be as detailed and thorough as possible — this should be ready to submit.
+Write a complete, polished, submission-ready assignment draft that:
+- Addresses every explicit requirement, question, or deliverable stated in the instructions — nothing more, nothing less.
+- Draws all content, evidence, and arguments directly from the study materials provided.
+- Follows any formatting, length, citation, or structural rules stated in the instructions.
+- Is written in a clear academic tone appropriate for the assignment type.
+- Does NOT include fabricated sources, invented data, or content not supported by the materials.
 
 ---STUDY AIDS---
-Produce a comprehensive study companion including:
-1. **Assignment Breakdown** — list every specific requirement/question from the instructions
-2. **Key Concepts & Definitions** — all important terms and their definitions
-3. **Main Arguments / Themes** — the core ideas to address
-4. **Important Facts & Evidence** — key data points, quotes, or facts from the materials
-5. **Structural Outline** — a hierarchical outline for the draft
-6. **5 Practice Questions with Answers** — to reinforce understanding`;
+Based strictly on the instructions and materials above, produce:
+1. **Exact Requirements Checklist** — every task/deliverable explicitly stated in the instructions (quote directly where possible)
+2. **Key Concepts from Materials** — terms and ideas drawn from the actual study materials
+3. **Evidence & Facts Available** — specific data points, quotes, or facts from the uploaded materials that can be used
+4. **Suggested Structure** — a draft outline mapped directly to the stated requirements
+5. **Gaps & Notes** — flag any requirements that couldn't be fully addressed due to missing materials`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt,
