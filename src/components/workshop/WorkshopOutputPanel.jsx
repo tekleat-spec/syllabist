@@ -23,7 +23,10 @@ export default function WorkshopOutputPanel({ courseId, assignmentName, items, o
   const materialItems = items.filter(i => i.item_type !== 'instructions');
   const hasInstructions = instructionItems.length > 0;
   const processingItems = items.filter(i => i.status === 'processing');
-  const fileUrls = items.filter(i => i.file_url).map(i => i.file_url);
+  // Pass all file URLs directly so the LLM can read the raw files, not just extracted text
+  const instructionFileUrls = instructionItems.filter(i => i.file_url).map(i => i.file_url);
+  const materialFileUrls = materialItems.filter(i => i.file_url).map(i => i.file_url);
+  const allFileUrls = [...instructionFileUrls, ...materialFileUrls];
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -32,24 +35,25 @@ export default function WorkshopOutputPanel({ courseId, assignmentName, items, o
     const instructionsContext = instructionItems.map(buildItemContext).join('\n\n');
     const materialsContext = materialItems.map(buildItemContext).join('\n\n');
 
-    // Pull raw instruction text for direct reading if files available
-    const instructionFileUrls = instructionItems.filter(i => i.file_url).map(i => i.file_url);
-    const allFileUrls = fileUrls;
-
     const prompt = `You are an expert academic writing assistant. Your job is to draft a complete, submission-ready assignment response.
 
 CRITICAL RULES:
+- READ THE ATTACHED FILES FIRST. The attached files are the primary source of truth — they contain the actual assignment instructions and study materials.
 - The draft must be grounded ONLY in what the instructions explicitly require and what the study materials actually contain.
 - Do NOT invent facts, sources, data, or requirements not present in the provided materials.
 - If the instructions specify a format, length, citation style, or structure — follow it exactly.
-- Every claim in the draft must be traceable to the instructions or study materials below.
 
 ASSIGNMENT NAME: "${assignmentName}"
 
-===ASSIGNMENT INSTRUCTIONS (extracted directly from uploaded document)===
+${instructionFileUrls.length > 0
+  ? `INSTRUCTION FILES ATTACHED: ${instructionFileUrls.length} file(s) attached above — read them to understand the exact assignment requirements.`
+  : `NO INSTRUCTION FILES: Use the extracted text below as the instructions context.`
+}
+
+===EXTRACTED ASSIGNMENT INSTRUCTIONS===
 ${instructionsContext || 'No instructions uploaded — base the draft on the study materials only.'}
 
-===STUDY MATERIALS & SOURCE CONTENT===
+===EXTRACTED STUDY MATERIALS===
 ${materialsContext || 'No additional study materials provided — work from the instructions alone.'}
 
 ===YOUR TASK===
@@ -61,7 +65,6 @@ Write a complete, polished, submission-ready assignment draft that:
 - Draws all content, evidence, and arguments directly from the study materials provided.
 - Follows any formatting, length, citation, or structural rules stated in the instructions.
 - Is written in a clear academic tone appropriate for the assignment type.
-- Does NOT include fabricated sources, invented data, or content not supported by the materials.
 
 ---STUDY AIDS---
 Based strictly on the instructions and materials above, produce:

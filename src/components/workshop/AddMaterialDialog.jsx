@@ -93,8 +93,8 @@ export default function AddMaterialDialog({ open, onClose, courseId, assignmentN
       file_url = res.file_url;
     }
 
-    // Create item with processing status
-    const item = await base44.entities.WorkshopItem.create({
+    // Build the full item data so analyzeItem has file_url available
+    const itemData = {
       course_id: courseId,
       assignment_name: assignmentName,
       item_type: itemType,
@@ -102,7 +102,9 @@ export default function AddMaterialDialog({ open, onClose, courseId, assignmentN
       file_url: file_url || undefined,
       source_url: isUrlType ? sourceUrl.trim() : undefined,
       status: 'processing',
-    });
+    };
+
+    const item = await base44.entities.WorkshopItem.create(itemData);
 
     // Notify parent so it shows the card immediately with "Analyzing" state
     onAdded();
@@ -115,9 +117,9 @@ export default function AddMaterialDialog({ open, onClose, courseId, assignmentN
     setUploading(false);
     setUploadStage('');
 
-    // Run analysis in background and update the item
-    setUploadStage('Analyzing…');
-    const analysis = await analyzeItem(item);
+    // Run analysis — pass enriched item object with file_url guaranteed
+    const itemWithUrl = { ...item, file_url: file_url || item.file_url, source_url: isUrlType ? sourceUrl.trim() : item.source_url };
+    const analysis = await analyzeItem(itemWithUrl);
     await base44.entities.WorkshopItem.update(item.id, analysis);
 
     // Notify parent again so it refreshes with full analysis
