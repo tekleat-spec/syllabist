@@ -16,6 +16,7 @@ const navItems = [
   { path: '/documents', icon: FileText, label: 'Documents' },
   { path: '/upload', icon: Upload, label: 'Upload' },
   { path: '/scheduler', icon: CalendarDays, label: 'Study Scheduler' },
+  { path: '/doc-qa', icon: BookOpen, label: 'Document Q&A' },
   { path: '/workshop', icon: Wrench, label: 'Workshop' },
   { path: '/audit', icon: ScrollText, label: 'Audit Log' },
 ];
