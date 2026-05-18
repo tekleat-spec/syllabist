@@ -66,23 +66,21 @@ export default function MaterialInsightCard({ item, onDelete }) {
               <TabsTrigger value="key_info" className="text-xs px-3 h-6">Key Info</TabsTrigger>
               <TabsTrigger value="outline" className="text-xs px-3 h-6">Outline</TabsTrigger>
             </TabsList>
-            <ScrollArea className="max-h-48">
-              <TabsContent value="summary">
-                <div className="prose prose-xs max-w-none text-xs">
-                  <ReactMarkdown>{item.summary || '_No summary available._'}</ReactMarkdown>
-                </div>
-              </TabsContent>
-              <TabsContent value="key_info">
-                <div className="prose prose-xs max-w-none text-xs">
-                  <ReactMarkdown>{item.key_info || '_No key info available._'}</ReactMarkdown>
-                </div>
-              </TabsContent>
-              <TabsContent value="outline">
-                <div className="prose prose-xs max-w-none text-xs">
-                  <ReactMarkdown>{item.outline || '_No outline available._'}</ReactMarkdown>
-                </div>
-              </TabsContent>
-            </ScrollArea>
+            <TabsContent value="summary">
+              <div className="prose prose-xs max-w-none text-xs">
+                <ReactMarkdown>{item.summary || '_No summary available._'}</ReactMarkdown>
+              </div>
+            </TabsContent>
+            <TabsContent value="key_info">
+              <div className="prose prose-xs max-w-none text-xs">
+                <ReactMarkdown>{item.key_info || '_No key info available._'}</ReactMarkdown>
+              </div>
+            </TabsContent>
+            <TabsContent value="outline">
+              <div className="prose prose-xs max-w-none text-xs">
+                <ReactMarkdown>{item.outline || '_No outline available._'}</ReactMarkdown>
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       )}
