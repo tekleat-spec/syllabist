@@ -55,16 +55,14 @@ export default function AssignmentFolder({ courseId, assignmentName }) {
               ))}
             </div>
           ) : (
-            <ScrollArea className="max-h-80">
-              <div className="space-y-2">
-                {items.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-6">No materials yet. Add instructions + study files.</p>
-                )}
-                {items.map(item => (
-                  <MaterialInsightCard key={item.id} item={item} onDelete={deleteItem} />
-                ))}
-              </div>
-            </ScrollArea>
+            <div className="space-y-2">
+              {items.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">No materials yet. Add instructions + study files.</p>
+              )}
+              {items.map(item => (
+                <MaterialInsightCard key={item.id} item={item} onDelete={deleteItem} />
+              ))}
+            </div>
           )}
         </div>
       </div>
