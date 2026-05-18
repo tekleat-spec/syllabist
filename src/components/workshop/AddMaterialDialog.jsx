@@ -15,27 +15,33 @@ async function analyzeItem(item) {
 
 ${urlContext}
 
-FIRST: Determine if this document is (A) assignment instructions/a prompt telling the student what to do, or (B) study material/reference content (lecture notes, readings, textbook, slides, etc.).
+FIRST: Determine if this document is:
+(A) ASSIGNMENT INSTRUCTIONS — a prompt, lab sheet, rubric, or directions telling the student what to do and submit.
+(B) STUDY MATERIAL — reference content like lecture notes, readings, a textbook chapter, or slides.
+
+Use the content itself to decide — do NOT rely on the file type or title alone. Common signals of assignment instructions: phrases like "submit", "upload", "you will", "create a", "take a screenshot", "your assignment is to", numbered tasks, grading criteria, deliverables list. Common signals of study material: explanatory prose, definitions, diagrams, examples without submission requirements.
 
 Then produce exactly three sections with these exact headers:
 
 ---SUMMARY---
-If this is ASSIGNMENT INSTRUCTIONS: In 1-2 paragraphs, describe exactly what this assignment is asking the student to do. State the assignment type, topic, and overall objective as described. Start with "**[Assignment Instructions]**".
-If this is STUDY MATERIAL: Write a concise 2-4 paragraph summary of the main topic, purpose, and overall structure. Start with "**[Study Material]**".
+If ASSIGNMENT INSTRUCTIONS: Start with "**[Assignment Instructions]**". In 2-3 sentences state: what the student must DO, what they must SUBMIT, and any stated purpose or context (course name, professor, topic). Be specific and literal — use the document's exact language.
+If STUDY MATERIAL: Start with "**[Study Material]**". In 2-4 paragraphs summarize the main topic, key ideas, and overall structure.
 
 ---KEY INFO---
-If this is ASSIGNMENT INSTRUCTIONS: Extract ONLY information explicitly stated. Use these sub-sections (omit any not mentioned):
-**Assignment Requirements:** Every task/deliverable the student must complete.
+If ASSIGNMENT INSTRUCTIONS: Extract ONLY what is explicitly stated in the document:
+**Tasks / Deliverables:** Number each distinct thing the student must create, write, run, or submit. Quote or closely paraphrase the exact wording.
+**Submission Format:** How to submit (PDF, Blackboard, email, etc.), file naming conventions — only if stated.
 **Formatting Rules:** Page/word count, font, spacing, citation style — only if stated.
 **Deadlines & Dates:** Any due dates or submission windows explicitly mentioned.
-**Grading Criteria:** Any rubric details or point values explicitly stated.
+**Grading / Point Breakdown:** Any rubric, point values, or grading criteria explicitly stated.
+**Tools / Resources Required:** Any specific tools, software, websites, or files the student must use.
 **Prohibited Items:** Anything explicitly forbidden.
 
-If this is STUDY MATERIAL: Extract all important facts, concepts, definitions, arguments, and key takeaways as a well-organized bullet list.
+If STUDY MATERIAL: Extract all important facts, concepts, definitions, arguments, and key takeaways as a well-organized bullet list.
 
 ---OUTLINE---
-If this is ASSIGNMENT INSTRUCTIONS: A suggested structural outline for completing the assignment, mapped to the explicit requirements.
-If this is STUDY MATERIAL: A structured hierarchical outline (I, II, III / A, B, C) reflecting the actual content structure.`;
+If ASSIGNMENT INSTRUCTIONS: A step-by-step action plan for completing and submitting the assignment. Each step should map directly to an explicit task or deliverable stated in the document.
+If STUDY MATERIAL: A structured hierarchical outline (I, II, III / A, B, C) reflecting the actual content structure.`;
 
   const useInternet = !!item.source_url;
   const result = await base44.integrations.Core.InvokeLLM({
