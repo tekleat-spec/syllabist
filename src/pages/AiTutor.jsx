@@ -32,7 +32,7 @@ function buildContext({ courses, assignments, documents, workshopItems }) {
     upcoming.forEach(a => {
       const course = courses.find(c => c.id === a.course_id);
       const days = differenceInDays(new Date(a.due_date), new Date());
-      lines.push(`- **${a.title}** [${course?.name || 'Unknown'}] — Due: ${format(new Date(a.due_date), 'MMM d, yyyy')} (${days} days) — Status: ${a.status} — Type: ${a.type || 'unknown'}`);
+      lines.push(`- **${a.title}** [${course?.name || 'Unknown'}] — Due: ${format(new Date(a.due_date), 'MMM d, yyyy')} (${days} days) — Status: ${a.status} — Type: ${a.type || 'unknown'}${a.description ? ` — Description: ${a.description}` : ''}`);
     });
   }
 
@@ -46,18 +46,24 @@ function buildContext({ courses, assignments, documents, workshopItems }) {
   }
 
   if (documents.length > 0) {
-    lines.push('\n## Uploaded Documents');
+    lines.push('\n## Uploaded Documents (Full Content)');
     documents.forEach(d => {
       const course = courses.find(c => c.id === d.course_id);
-      lines.push(`- **${d.title}** [${course?.name || 'Unknown'}] (${d.type || 'doc'})${d.content_summary ? ` — Summary: ${d.content_summary.slice(0, 200)}` : ''}`);
+      lines.push(`\n### Document: "${d.title}" [${course?.name || 'Unknown Course'}] (${d.type || 'doc'})`);
+      if (d.content_summary) lines.push(`**Summary:**\n${d.content_summary}`);
+      if (d.generated_content) lines.push(`**Generated Content (${d.generation_type || 'ai'}):**\n${d.generated_content}`);
     });
   }
 
   if (workshopItems.length > 0) {
-    lines.push('\n## Workshop Study Materials');
+    lines.push('\n## Workshop Study Materials (Full Content)');
     workshopItems.forEach(w => {
       const course = courses.find(c => c.id === w.course_id);
-      lines.push(`- **${w.title}** [${course?.name || 'Unknown'}] — Assignment: ${w.assignment_name}${w.summary ? ` — Summary: ${w.summary.slice(0, 200)}` : ''}`);
+      lines.push(`\n### Material: "${w.title}" [${course?.name || 'Unknown Course'}] — Assignment: ${w.assignment_name} (${w.item_type})`);
+      if (w.summary) lines.push(`**Summary:**\n${w.summary}`);
+      if (w.key_info) lines.push(`**Key Information:**\n${w.key_info}`);
+      if (w.outline) lines.push(`**Outline:**\n${w.outline}`);
+      if (w.extracted_text) lines.push(`**Full Text:**\n${w.extracted_text}`);
     });
   }
 
@@ -110,16 +116,20 @@ export default function AiTutor() {
 
     const context = buildContext({ courses, assignments, documents, workshopItems });
 
-    const systemPrompt = `You are StudyBuddy, a knowledgeable and encouraging AI tutor. You have full access to this student's academic data.
+    const systemPrompt = `You are StudyBuddy, a knowledgeable and encouraging AI tutor. You have been given the student's FULL academic materials — treat them exactly as you would treat a document you can read, comprehend, and reason over.
 
-${context ? `Here is the student's current academic context:\n\n${context}` : 'The student has no courses or assignments loaded yet.'}
+${context ? `Here is the student's complete academic context, including full document content:\n\n${context}` : 'The student has no courses or assignments loaded yet.'}
 
 Guidelines:
-- Be concise but thorough. Use markdown formatting (bold, lists, headers) where helpful.
-- If asked about a specific assignment or document, reference the actual data above.
-- If asked to quiz the student, create relevant questions based on their materials.
-- Always be encouraging and supportive.
-- If the student asks something you don't have data for, be honest about what you know vs. don't know.`;
+- You have the FULL content of every uploaded document and workshop material above. Read and use it deeply.
+- When asked to explain a concept, pull the actual explanation from the materials and elaborate on it.
+- When asked to write, draft, or create something (essay, code, answers, notes), use the materials as your source — just like a student who has read them.
+- When asked to quiz the student, generate questions directly from the actual content above.
+- When asked to summarize, produce a thorough summary based on the real content, not generic text.
+- Use markdown formatting (bold, lists, headers, code blocks) where helpful.
+- Always cite which document or material your answer comes from.
+- Be encouraging and supportive.
+- If you don't have enough data in the provided context to answer accurately, say so clearly.`;
 
     const history = messages
       .filter(m => m.role !== 'system')
