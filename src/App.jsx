@@ -18,6 +18,7 @@ import AssignmentsWorkshop from '@/pages/AssignmentsWorkshop';
 import AiTutor from '@/pages/AiTutor';
 import StudyScheduler from '@/pages/StudyScheduler';
 import DocumentQA from '@/pages/DocumentQA';
+import Research from '@/pages/Research';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -53,6 +54,7 @@ const AuthenticatedApp = () => {
         <Route path="/workshop" element={<AssignmentsWorkshop />} />
         <Route path="/scheduler" element={<StudyScheduler />} />
         <Route path="/doc-qa" element={<DocumentQA />} />
+        <Route path="/research" element={<Research />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
