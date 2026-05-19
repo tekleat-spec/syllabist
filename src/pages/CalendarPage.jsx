@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/shared/PageHeader';
-import EmptyState from '@/components/shared/EmptyState';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, startOfWeek, endOfWeek } from 'date-fns';
 import { motion } from 'framer-motion';
 
@@ -22,6 +21,13 @@ const eventTypeColors = {
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const queryClient = useQueryClient();
+
+  const toggleAssignmentDone = async (assignmentId, currentStatus) => {
+    const newStatus = currentStatus === 'submitted' ? 'upcoming' : 'submitted';
+    await base44.entities.Assignment.update(assignmentId, { status: newStatus });
+    queryClient.invalidateQueries({ queryKey: ['assignments'] });
+  };
 
   const { data: events = [] } = useQuery({
     queryKey: ['calendar-events'],
@@ -44,10 +50,13 @@ export default function CalendarPage() {
       .filter(a => a.due_date)
       .map(a => ({
         id: `a-${a.id}`,
+        assignmentId: a.id,
         title: a.title,
         start_date: a.due_date,
         event_type: a.type === 'exam' ? 'exam' : 'deadline',
         course_id: a.course_id,
+        status: a.status,
+        isAssignment: true,
       }));
     return [...events, ...assignmentEvents];
   }, [events, assignments]);
@@ -125,12 +134,15 @@ export default function CalendarPage() {
                     {format(day, 'd')}
                   </span>
                   <div className="mt-1 space-y-0.5">
-                    {dayEvents.slice(0, 3).map((e) => (
-                      <div key={e.id} className="flex items-center gap-1">
-                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${eventTypeColors[e.event_type] || eventTypeColors.other}`} />
-                        <span className="text-[10px] text-foreground truncate leading-tight">{e.title}</span>
-                      </div>
-                    ))}
+                    {dayEvents.slice(0, 3).map((e) => {
+                      const done = e.status === 'submitted' || e.status === 'graded';
+                      return (
+                        <div key={e.id} className="flex items-center gap-1">
+                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${done ? 'bg-emerald-500' : (eventTypeColors[e.event_type] || eventTypeColors.other)}`} />
+                          <span className={`text-[10px] truncate leading-tight ${done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{e.title}</span>
+                        </div>
+                      );
+                    })}
                     {dayEvents.length > 3 && (
                       <span className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} more</span>
                     )}
@@ -152,21 +164,44 @@ export default function CalendarPage() {
           <div className="space-y-3">
             {selectedEvents.map((e) => {
               const course = courses.find(c => c.id === e.course_id);
+              const done = e.status === 'submitted' || e.status === 'graded';
               return (
                 <motion.div
                   key={e.id}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-3 rounded-lg bg-muted/50 border border-border"
+                  className={`p-3 rounded-lg border transition-colors ${done ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-muted/50 border-border'}`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-2 h-2 rounded-full ${eventTypeColors[e.event_type] || eventTypeColors.other}`} />
-                    <span className="text-sm font-medium text-foreground">{e.title}</span>
+                  <div className="flex items-start gap-2">
+                    {e.isAssignment ? (
+                      <button
+                        onClick={() => toggleAssignmentDone(e.assignmentId, e.status)}
+                        className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-emerald-500 transition-colors"
+                      >
+                        {done
+                          ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          : <Circle className="w-4 h-4" />}
+                      </button>
+                    ) : (
+                      <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${eventTypeColors[e.event_type] || eventTypeColors.other}`} />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-sm font-medium ${done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                        {e.title}
+                      </span>
+                      {course && <p className="text-xs text-muted-foreground mt-0.5">{course.name}</p>}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {e.event_type?.replace(/_/g, ' ')}
+                        </Badge>
+                        {done && (
+                          <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-0">
+                            ✓ Done
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  {course && <p className="text-xs text-muted-foreground ml-4">{course.name}</p>}
-                  <Badge variant="outline" className="text-[10px] mt-2 capitalize">
-                    {e.event_type?.replace(/_/g, ' ')}
-                  </Badge>
                 </motion.div>
               );
             })}
