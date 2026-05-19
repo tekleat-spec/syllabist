@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Send, CalendarDays, Loader2, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
+import ScheduleCalendar from '@/components/scheduler/ScheduleCalendar';
 
 const SUGGESTIONS = [
   "Build me a study schedule for this week",
@@ -135,13 +136,26 @@ export default function StudyScheduler() {
               )}>
                 {isUser ? (
                   <p className="whitespace-pre-wrap">{msg.content}</p>
-                ) : (
-                  <ReactMarkdown
-                    className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-table:text-foreground prose-code:text-foreground"
-                  >
-                    {msg.content}
-                  </ReactMarkdown>
-                )}
+                ) : (() => {
+                  const hasSchedule = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(msg.content);
+                  return hasSchedule ? (
+                    <>
+                      <ScheduleCalendar markdown={msg.content} />
+                      <details className="mt-3">
+                        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Show full text</summary>
+                        <ReactMarkdown className="prose prose-sm max-w-none mt-2 prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
+                          {msg.content}
+                        </ReactMarkdown>
+                      </details>
+                    </>
+                  ) : (
+                    <ReactMarkdown
+                      className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-table:text-foreground prose-code:text-foreground"
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  );
+                })()}
               </div>
             </div>
           );
