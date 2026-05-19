@@ -4,106 +4,119 @@ import { BookOpen, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 const DAY_NAMES = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
 const DAY_COLORS = [
-  'bg-blue-50 border-blue-200 text-blue-700',
-  'bg-violet-50 border-violet-200 text-violet-700',
-  'bg-emerald-50 border-emerald-200 text-emerald-700',
-  'bg-amber-50 border-amber-200 text-amber-700',
-  'bg-rose-50 border-rose-200 text-rose-700',
-  'bg-sky-50 border-sky-200 text-sky-700',
-  'bg-orange-50 border-orange-200 text-orange-700',
+  { card: 'bg-blue-50 border-blue-200', header: 'bg-blue-100 text-blue-800', dot: 'bg-blue-400' },
+  { card: 'bg-violet-50 border-violet-200', header: 'bg-violet-100 text-violet-800', dot: 'bg-violet-400' },
+  { card: 'bg-emerald-50 border-emerald-200', header: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-400' },
+  { card: 'bg-amber-50 border-amber-200', header: 'bg-amber-100 text-amber-800', dot: 'bg-amber-400' },
+  { card: 'bg-rose-50 border-rose-200', header: 'bg-rose-100 text-rose-800', dot: 'bg-rose-400' },
+  { card: 'bg-sky-50 border-sky-200', header: 'bg-sky-100 text-sky-800', dot: 'bg-sky-400' },
+  { card: 'bg-orange-50 border-orange-200', header: 'bg-orange-100 text-orange-800', dot: 'bg-orange-400' },
 ];
 
-const DOT_COLORS = [
-  'bg-blue-400',
-  'bg-violet-400',
-  'bg-emerald-400',
-  'bg-amber-400',
-  'bg-rose-400',
-  'bg-sky-400',
-  'bg-orange-400',
-];
+function cleanCell(text) {
+  return text.replace(/\*\*/g, '').replace(/\*/g, '').trim();
+}
 
 function parseSchedule(markdown) {
-  const lines = markdown.split('\n');
-  const days = [];
-  let current = null;
+  const days = {};
+  const dayOrder = [];
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
+  // --- Strategy 1: Markdown table rows ---
+  // Each row: | Day | Course | Tasks | ... |
+  const tableRows = markdown.split('\n').filter(l => l.trim().startsWith('|'));
+  
+  for (const row of tableRows) {
+    const cells = row.split('|').map(c => cleanCell(c)).filter(Boolean);
+    if (cells.length < 2) continue;
+    // Skip separator rows like |---|---|
+    if (cells.every(c => /^[-:]+$/.test(c))) continue;
+    // Skip header rows
+    const firstCell = cells[0].toLowerCase();
+    if (firstCell === 'day' || firstCell === 'date') continue;
 
-    const headerMatch =
-      line.match(/^#{1,3}\s*\*{0,2}(.+?)\*{0,2}$/) ||
-      line.match(/^\*{2}(.+?)\*{2}$/) ||
-      line.match(/^__(.+?)__$/);
+    const isDay = DAY_NAMES.some(d => firstCell.includes(d));
+    if (!isDay) continue;
 
-    if (headerMatch) {
-      const title = headerMatch[1].trim();
-      const isDay = DAY_NAMES.some(d => title.toLowerCase().includes(d));
-      if (isDay) {
-        current = { title, sessions: [] };
-        days.push(current);
-        continue;
-      }
+    const dayLabel = cells[0];
+    const sessionText = cells.slice(1).filter(Boolean).join(' · ');
+
+    if (!days[dayLabel]) {
+      days[dayLabel] = { title: dayLabel, sessions: [] };
+      dayOrder.push(dayLabel);
     }
+    if (sessionText) days[dayLabel].sessions.push(sessionText);
+  }
 
-    if (current) {
-      const bulletMatch = line.match(/^[-*•]\s+(.+)/) || line.match(/^\d+\.\s+(.+)/);
-      if (bulletMatch) {
-        current.sessions.push(bulletMatch[1].trim());
+  // --- Strategy 2: Bold/header day sections (## Monday or **Monday**) ---
+  if (dayOrder.length === 0) {
+    const lines = markdown.split('\n');
+    let current = null;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      const headerMatch =
+        line.match(/^#{1,3}\s*\*{0,2}(.+?)\*{0,2}$/) ||
+        line.match(/^\*{2}(.+?)\*{2}$/) ||
+        line.match(/^__(.+?)__$/);
+
+      if (headerMatch) {
+        const title = headerMatch[1].trim();
+        const isDay = DAY_NAMES.some(d => title.toLowerCase().includes(d));
+        if (isDay) {
+          current = { title, sessions: [] };
+          days[title] = current;
+          dayOrder.push(title);
+          continue;
+        }
+      }
+
+      if (current) {
+        const bulletMatch = line.match(/^[-*•]\s+(.+)/) || line.match(/^\d+\.\s+(.+)/);
+        if (bulletMatch) current.sessions.push(bulletMatch[1].trim());
       }
     }
   }
 
-  return days;
+  return dayOrder.map(k => days[k]);
 }
 
-function SessionPill({ text, dotColor }) {
-  // Try to extract a time like "9:00 AM - 10:00 AM" from the session text
-  const timeMatch = text.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm)?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm)?)/i);
-  const time = timeMatch?.[1]?.trim();
-  const label = time ? text.replace(timeMatch[0], '').replace(/^[\s:\-–]+|[\s:\-–]+$/g, '') : text;
+function DayCard({ day, colors, index }) {
+  const [expanded, setExpanded] = useState(true);
+  // Short name: "Tuesday, May 19" → "Tue · May 19"
+  const parts = day.title.split(',');
+  const shortDay = parts[0].trim().slice(0, 3);
+  const date = parts.slice(1).join(',').trim();
 
   return (
-    <div className="flex items-start gap-2 py-1.5 px-2 rounded-lg hover:bg-black/5 transition-colors group">
-      <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
-      <div className="min-w-0">
-        {time && <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{time}</p>}
-        <p className="text-xs text-foreground leading-snug">{label || text}</p>
-      </div>
-    </div>
-  );
-}
-
-function DayCard({ day, colorClass, dotColor, index }) {
-  const [expanded, setExpanded] = useState(index < 3);
-  const shortName = day.title.split(',')[0].split(' ')[0];
-
-  return (
-    <div className={`rounded-xl border ${colorClass} overflow-hidden flex flex-col`}>
-      {/* Day header */}
+    <div className={`rounded-xl border ${colors.card} overflow-hidden flex flex-col`}>
       <button
         onClick={() => setExpanded(o => !o)}
-        className="flex items-center justify-between px-3 py-2.5 w-full text-left"
+        className={`flex items-center justify-between px-3 py-2.5 w-full text-left ${colors.header}`}
       >
         <div>
-          <p className="font-bold text-sm">{shortName}</p>
-          {day.title.includes(',') && (
-            <p className="text-[10px] opacity-70 font-medium">{day.title.split(',').slice(1).join(',').trim()}</p>
-          )}
+          <p className="font-bold text-sm">{shortDay}</p>
+          {date && <p className="text-[10px] font-medium opacity-75">{date}</p>}
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-medium opacity-70">{day.sessions.length} task{day.sessions.length !== 1 ? 's' : ''}</span>
-          {expanded ? <ChevronUp className="w-3.5 h-3.5 opacity-60" /> : <ChevronDown className="w-3.5 h-3.5 opacity-60" />}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] font-medium opacity-60">{day.sessions.length}</span>
+          {expanded
+            ? <ChevronUp className="w-3.5 h-3.5 opacity-60" />
+            : <ChevronDown className="w-3.5 h-3.5 opacity-60" />}
         </div>
       </button>
 
-      {/* Sessions */}
       {expanded && (
-        <div className="bg-white/60 px-2 pb-2 space-y-0.5 flex-1">
+        <div className="bg-white/70 px-2 py-2 space-y-1.5">
           {day.sessions.length > 0
-            ? day.sessions.map((s, i) => <SessionPill key={i} text={s} dotColor={dotColor} />)
-            : <p className="text-xs text-muted-foreground italic px-2 py-1">Rest day 🎉</p>
+            ? day.sessions.map((s, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`} />
+                  <p className="text-xs text-foreground leading-snug">{s}</p>
+                </div>
+              ))
+            : <p className="text-xs text-muted-foreground italic px-1">Rest day 🎉</p>
           }
         </div>
       )}
@@ -118,22 +131,18 @@ export default function ScheduleCalendar({ markdown }) {
   const totalSessions = days.reduce((s, d) => s + d.sessions.length, 0);
 
   return (
-    <div className="w-full">
-      {/* Summary bar */}
+    <div className="w-full mt-1">
       <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
         <BookOpen className="w-3.5 h-3.5" />
         <span>{days.length}-day plan · {totalSessions} study sessions</span>
       </div>
-
-      {/* Calendar grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
         {days.map((day, i) => (
           <DayCard
             key={i}
             day={day}
             index={i}
-            colorClass={DAY_COLORS[i % DAY_COLORS.length]}
-            dotColor={DOT_COLORS[i % DOT_COLORS.length]}
+            colors={DAY_COLORS[i % DAY_COLORS.length]}
           />
         ))}
       </div>
