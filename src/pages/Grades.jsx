@@ -1,8 +1,10 @@
 import React from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { GraduationCap, TrendingUp, Award } from 'lucide-react';
+import { GraduationCap, TrendingUp, Award, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -74,7 +76,17 @@ export default function Grades() {
 
   return (
     <div>
-      <PageHeader title="Grades" subtitle="Track your academic performance" />
+      <PageHeader
+        title="Grades"
+        subtitle="Track your academic performance"
+        actions={
+          <Link to="/upload?tab=gradebook">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Upload className="w-4 h-4" /> Import Gradebook
+            </Button>
+          </Link>
+        }
+      />
 
       {/* Overview Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">

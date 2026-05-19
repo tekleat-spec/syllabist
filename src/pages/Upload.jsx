@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Upload as UploadIcon, FileUp, Loader2, CheckCircle2, BookOpen, FileText, Megaphone } from 'lucide-react';
+import { Upload as UploadIcon, FileUp, Loader2, CheckCircle2, BookOpen, FileText, Megaphone, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,8 @@ import { toast } from 'sonner';
 
 export default function Upload() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('syllabus');
+  const initialTab = new URLSearchParams(window.location.search).get('tab') || 'syllabus';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [file, setFile] = useState(null);
   const [courseId, setCourseId] = useState('');
   const [newCourseName, setNewCourseName] = useState('');
@@ -49,6 +50,8 @@ export default function Upload() {
       await processSyllabus(file_url, targetCourseId, docType);
     } else if (activeTab === 'announcement') {
       await processAnnouncement(file_url, targetCourseId, docType);
+    } else if (activeTab === 'gradebook') {
+      await processGradebook(file_url, targetCourseId);
     } else {
       await processMaterial(file_url, targetCourseId);
     }
@@ -269,21 +272,107 @@ export default function Upload() {
     }
   };
 
+  const processGradebook = async (fileUrl, targetCourseId) => {
+    const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
+      file_url: fileUrl,
+      json_schema: {
+        type: 'object',
+        properties: {
+          grades: {
+            type: 'array',
+            description: 'Every graded item found in the gradebook',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', description: 'Assignment/exam/quiz name exactly as shown' },
+                type: { type: 'string', enum: ['homework', 'exam', 'quiz', 'project', 'paper', 'presentation', 'lab', 'reading', 'other'] },
+                grade: { type: 'number', description: 'Numeric grade (0-100 scale, convert if needed)' },
+                points_earned: { type: 'number', description: 'Points earned if shown' },
+                points_possible: { type: 'number', description: 'Points possible if shown' },
+                weight: { type: 'number', description: 'Weight as % of final grade if shown' },
+                due_date: { type: 'string', description: 'Due date as ISO string if visible' },
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (extracted.status !== 'success' || !extracted.output?.grades?.length) {
+      toast.error('Could not extract grade data from the file.');
+      return;
+    }
+
+    const gradeItems = extracted.output.grades;
+
+    // Fetch existing assignments for the course
+    const existing = await base44.entities.Assignment.filter({ course_id: targetCourseId });
+
+    let updated = 0;
+    let created = 0;
+
+    for (const item of gradeItems) {
+      if (item.grade == null && item.points_earned == null) continue;
+
+      // Fuzzy match: normalize titles for comparison
+      const normalize = s => s?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+      const match = existing.find(a => normalize(a.title) === normalize(item.title));
+
+      const gradeValue = item.grade != null
+        ? item.grade
+        : (item.points_earned != null && item.points_possible)
+          ? (item.points_earned / item.points_possible) * 100
+          : null;
+
+      if (gradeValue == null) continue;
+
+      if (match) {
+        await base44.entities.Assignment.update(match.id, {
+          grade: parseFloat(gradeValue.toFixed(2)),
+          ...(item.points_earned != null && { points_earned: item.points_earned }),
+          ...(item.points_possible != null && { max_points: item.points_possible }),
+          status: 'graded',
+        });
+        updated++;
+      } else {
+        // Create new assignment with the grade
+        await base44.entities.Assignment.create({
+          title: item.title,
+          course_id: targetCourseId,
+          type: item.type || 'other',
+          grade: parseFloat(gradeValue.toFixed(2)),
+          ...(item.points_earned != null && { points_earned: item.points_earned }),
+          ...(item.points_possible != null && { max_points: item.points_possible }),
+          ...(item.weight != null && { weight: item.weight }),
+          ...(item.due_date && { due_date: item.due_date }),
+          status: 'graded',
+        });
+        created++;
+      }
+    }
+
+    queryClient.invalidateQueries();
+    toast.success(`Gradebook imported! ${updated} assignment${updated !== 1 ? 's' : ''} updated, ${created} new assignment${created !== 1 ? 's' : ''} created.`);
+  };
+
   return (
     <div>
       <PageHeader title="Upload" subtitle="Upload syllabi, announcements, and course materials" />
 
       <Card className="max-w-2xl mx-auto p-6 md:p-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 mb-6">
-            <TabsTrigger value="syllabus" className="gap-2 text-xs sm:text-sm">
+          <TabsList className="grid grid-cols-4 mb-6">
+            <TabsTrigger value="syllabus" className="gap-1.5 text-xs sm:text-sm">
               <BookOpen className="w-4 h-4" /> Syllabus
             </TabsTrigger>
-            <TabsTrigger value="announcement" className="gap-2 text-xs sm:text-sm">
+            <TabsTrigger value="announcement" className="gap-1.5 text-xs sm:text-sm">
               <Megaphone className="w-4 h-4" /> Announcement
             </TabsTrigger>
-            <TabsTrigger value="material" className="gap-2 text-xs sm:text-sm">
+            <TabsTrigger value="material" className="gap-1.5 text-xs sm:text-sm">
               <FileText className="w-4 h-4" /> Material
+            </TabsTrigger>
+            <TabsTrigger value="gradebook" className="gap-1.5 text-xs sm:text-sm">
+              <GraduationCap className="w-4 h-4" /> Gradebook
             </TabsTrigger>
           </TabsList>
 
@@ -300,6 +389,11 @@ export default function Upload() {
           <TabsContent value="material">
             <p className="text-sm text-muted-foreground mb-6">
               Upload slides, notes, PDFs, or other materials. We'll process them so you can generate study guides, summaries, and more.
+            </p>
+          </TabsContent>
+          <TabsContent value="gradebook">
+            <p className="text-sm text-muted-foreground mb-6">
+              Upload a gradebook PDF or screenshot. We'll extract every grade and match it to your existing assignments — or create new ones if they're not in the system yet.
             </p>
           </TabsContent>
         </Tabs>
