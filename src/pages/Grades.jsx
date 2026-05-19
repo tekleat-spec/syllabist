@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GraduationCap, TrendingUp, Award, Upload } from 'lucide-react';
@@ -43,6 +43,11 @@ export default function Grades() {
 
   const updateGrade = useMutation({
     mutationFn: ({ id, grade }) => base44.entities.Assignment.update(id, { grade: parseFloat(grade), status: 'graded' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['assignments'] }),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: ({ id, status }) => base44.entities.Assignment.update(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['assignments'] }),
   });
 
@@ -185,12 +190,22 @@ export default function Grades() {
                       />
                     </td>
                     <td className="px-4 py-3.5">
-                      <Badge
-                        variant={a.status === 'graded' ? 'default' : a.status === 'submitted' ? 'secondary' : 'outline'}
-                        className="text-[10px] capitalize"
+                      <Select
+                        value={a.status || 'upcoming'}
+                        onValueChange={status => updateStatus.mutate({ id: a.id, status })}
                       >
-                        {a.status?.replace(/_/g, ' ') || 'upcoming'}
-                      </Badge>
+                        <SelectTrigger className="h-7 text-[11px] w-32 px-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="upcoming">Upcoming</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="submitted">Submitted</SelectItem>
+                          <SelectItem value="graded">Graded</SelectItem>
+                          <SelectItem value="late">Late</SelectItem>
+                          <SelectItem value="missed">Missed</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </td>
                   </motion.tr>
                 );
