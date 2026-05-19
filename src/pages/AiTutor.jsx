@@ -8,7 +8,7 @@ import TutorMessage from '@/components/tutor/TutorMessage';
 
 const WELCOME = {
   role: 'assistant',
-  content: `👋 Hi! I'm your AI study tutor. I have full context of your courses, assignments, documents, and grades.
+  content: `👋 Hi! I'm Syllabist, your AI study tutor. I have full context of your courses, assignments, documents, and grades.
 
 Ask me anything — help with assignments, explain concepts, quiz you on material, summarize documents, check upcoming deadlines, or anything else you need to study smarter.`,
 };
@@ -116,7 +116,7 @@ export default function AiTutor() {
 
     const context = buildContext({ courses, assignments, documents, workshopItems });
 
-    const systemPrompt = `You are StudyBuddy, a knowledgeable and encouraging AI tutor. You have been given the student's FULL academic materials — treat them exactly as you would treat a document you can read, comprehend, and reason over.
+    const systemPrompt = `You are Syllabist, a knowledgeable and encouraging AI tutor. You have been given the student's FULL academic materials — treat them exactly as you would treat a document you can read, comprehend, and reason over.
 
 ${context ? `Here is the student's complete academic context, including full document content:\n\n${context}` : 'The student has no courses or assignments loaded yet.'}
 

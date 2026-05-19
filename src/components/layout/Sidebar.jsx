@@ -44,7 +44,7 @@ export default function Sidebar({ collapsed, onToggle }) {
               animate={{ opacity: 1 }}
               className="text-sidebar-foreground font-semibold text-lg tracking-tight whitespace-nowrap"
             >
-              StudyBuddy
+              Syllabist
             </motion.span>
           )}
         </div>
