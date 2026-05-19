@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Send, Loader2, Paperclip, X, FlaskConical, BookOpen, Scale, GraduationCap } from 'lucide-react';
+import { Send, Loader2, Paperclip, X, FlaskConical, BookOpen, Scale, GraduationCap, FileDown, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import TutorMessage from '@/components/tutor/TutorMessage';
@@ -14,29 +14,37 @@ const CITATION_STYLES = [
 
 const WELCOME = {
   role: 'assistant',
-  content: `🔬 **Research Assistant** — I conduct deep, source-backed research and produce detailed findings with proper citations.
+  content: `# 🔬 Research & Writing Assistant
 
-**How to use:**
-- Type a research prompt, question, or paste assignment instructions
-- Optionally attach a document (syllabus, rubric, prompt PDF) for context
-- Select your citation style (MLA, APA, or BlueBook)
-- I'll search reputable sources, synthesize findings, and format citations correctly
+I help you produce **publication-quality research papers** grounded in real sources — peer-reviewed journals, government data, legal cases, and more.
 
-I'll ask for clarification whenever your prompt needs more direction before I begin researching.`,
+**My process:**
+1. **Understand** — I'll ask clarifying questions about your topic, scope, audience, and requirements before I begin
+2. **Research** — I search reputable sources and synthesize findings across multiple perspectives
+3. **Draft** — I write a full, structured research paper with proper in-text citations
+4. **Refine** — You guide revisions until it meets your standard
+
+**What to provide:**
+- A topic, question, or thesis
+- Assignment instructions or a rubric (attach as file)
+- Any uploaded course materials I should draw from
+- Your target length, audience, and citation style
+
+**Select your citation format above, then tell me what you're researching.**`,
 };
 
 const SUGGESTED = [
-  'Research the causes and long-term effects of the 2008 financial crisis',
-  'Find peer-reviewed sources on climate change and agricultural yield',
-  'Analyze landmark Supreme Court cases on Fourth Amendment rights',
-  'Research the psychological impact of social media on adolescents',
+  'Write a research paper on the ethics of AI in criminal sentencing',
+  'Analyze the economic impact of minimum wage increases — full paper',
+  'Research paper: The role of gut microbiome in mental health disorders',
+  'Legal research memo on Fourth Amendment and digital privacy',
 ];
 
 export default function Research() {
   const [messages, setMessages] = useState([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [citationStyle, setCitationStyle] = useState('MLA');
+  const [citationStyle, setCitationStyle] = useState('APA');
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const bottomRef = useRef(null);
@@ -69,7 +77,7 @@ export default function Research() {
   const buildMaterialsContext = () => {
     const parts = [];
     if (documents.length > 0) {
-      parts.push('## Student Uploaded Documents');
+      parts.push('## STUDENT UPLOADED DOCUMENTS (treat as primary sources where applicable)');
       documents.forEach(d => {
         const course = courses.find(c => c.id === d.course_id);
         parts.push(`### "${d.title}" [${course?.name || 'Unknown Course'}]`);
@@ -78,7 +86,7 @@ export default function Research() {
       });
     }
     if (workshopItems.length > 0) {
-      parts.push('## Workshop Materials');
+      parts.push('## WORKSHOP MATERIALS');
       workshopItems.forEach(w => {
         const course = courses.find(c => c.id === w.course_id);
         parts.push(`### "${w.title}" [${course?.name || 'Unknown'}] — ${w.assignment_name}`);
@@ -88,6 +96,25 @@ export default function Research() {
       });
     }
     return parts.join('\n\n');
+  };
+
+  const exportPaper = () => {
+    const paperMessages = messages.filter(m => m.role === 'assistant' && m.content.length > 300);
+    if (paperMessages.length === 0) return;
+    const lastPaper = paperMessages[paperMessages.length - 1].content;
+    const blob = new Blob([lastPaper], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'research-paper.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const resetConversation = () => {
+    setMessages([WELCOME]);
+    setInput('');
+    setAttachments([]);
   };
 
   const send = async () => {
@@ -101,6 +128,7 @@ export default function Research() {
     setLoading(true);
 
     const materialsCtx = buildMaterialsContext();
+
     const history = messages
       .filter(m => m.role !== 'system')
       .map(m => `${m.role === 'user' ? 'User' : 'ResearchAI'}: ${m.content}`)
@@ -108,24 +136,64 @@ export default function Research() {
 
     const fileUrls = userMsg.attachments?.map(a => a.url) || [];
 
-    const systemPrompt = `You are an expert academic research assistant embedded in StudyBuddy. Your job is to conduct rigorous, source-grounded research and produce detailed, well-organized findings.
+    const systemPrompt = `You are an elite academic research writer and subject-matter expert. Your outputs are publication-worthy — the caliber of peer-reviewed journals, law reviews, and scholarly publications. You work collaboratively with the user through a multi-turn conversation to produce a complete, polished research paper.
 
-CITATION STYLE: ${citationStyle}
-${citationStyle === 'MLA' ? 'Format all citations in MLA 9th edition. Use in-text parenthetical citations (Author Page) and a Works Cited list at the end.' : ''}
-${citationStyle === 'APA' ? 'Format all citations in APA 7th edition. Use in-text (Author, Year) citations and a References list at the end.' : ''}
-${citationStyle === 'BlueBook' ? 'Format all citations using BlueBook 21st edition standards. Use proper legal citation format including court, year, reporter, and page.' : ''}
+CITATION STYLE: **${citationStyle}**
+${citationStyle === 'MLA' ? `
+- In-text: (Author Last Name Page#) — e.g., (Smith 42)
+- Works Cited at end, hanging indent format, MLA 9th edition
+- Journal: Author(s). "Article Title." Journal Name, vol. #, no. #, Year, pp. ##–##. DOI or URL.` : ''}
+${citationStyle === 'APA' ? `
+- In-text: (Author, Year, p. #) — e.g., (Smith, 2022, p. 14)
+- References list at end, hanging indent, APA 7th edition
+- Journal: Author, A. A. (Year). Title of article. Journal Name, Volume(Issue), pages. https://doi.org/xxxxx` : ''}
+${citationStyle === 'BlueBook' ? `
+- Use BlueBook 21st edition legal citation format
+- Cases: Party v. Party, Volume Reporter Page (Court Year)
+- Statutes, law review articles, and secondary sources per BlueBook rules
+- Footnote citations where appropriate` : ''}
 
-${materialsCtx ? `## Student's Uploaded Course Materials (use as assignment context):\n${materialsCtx}` : ''}
+${materialsCtx ? `## Student's Course Materials (incorporate as appropriate):\n${materialsCtx}\n---` : ''}
 
-RESEARCH GUIDELINES:
-1. **Clarification first**: If the prompt is vague, ambiguous, or missing key scope (topic, time period, jurisdiction, discipline), ask 1-3 specific clarifying questions BEFORE researching. Do not guess.
-2. **Source quality**: Use only reputable sources — peer-reviewed journals, government publications, established news organizations, authoritative textbooks, or landmark legal cases. Never fabricate sources.
-3. **Depth**: Provide detailed findings organized with clear headers and subheadings. Cover multiple perspectives where relevant.
-4. **Citations**: Every factual claim must have an inline citation. End with a complete bibliography/works cited/references section in the chosen format.
-5. **Academic tone**: Write in formal, academic prose appropriate for the citation style selected.
-6. **Synthesis**: Don't just list facts — analyze, compare, and synthesize the research into coherent findings.
+## YOUR ROLE AND PROCESS:
 
-Conversation so far:
+**Phase 1 — Clarification (ALWAYS do this if this is the first user message or if the topic is underspecified):**
+Before writing, ask targeted clarifying questions to ensure a high-quality paper:
+- Specific thesis or research question (or help them develop one)
+- Target length (e.g., 5 pages, 15 pages, 3000 words)
+- Audience (undergraduate course, law journal, general academic, etc.)
+- Any specific subtopics, arguments, or sources they want included
+- Whether they need an abstract, literature review, methodology section, etc.
+- Any constraints (e.g., no sources before 2010, must include X author, etc.)
+Do NOT ask all at once — ask the most critical 2-3 questions naturally.
+
+**Phase 2 — Outline (when you have enough info):**
+Present a detailed outline before writing the full paper. Get user approval or revisions.
+
+**Phase 3 — Full Paper Draft:**
+Write the complete paper section by section. Include:
+- Title page info (title, author placeholder, course, date)
+- Abstract (if appropriate for the style)
+- Introduction with thesis statement
+- Body sections with headers/subheadings
+- Literature review or background where relevant
+- Analysis, argument development, or findings
+- Counterarguments addressed (where relevant)
+- Conclusion
+- Full bibliography/references/works cited
+
+**Phase 4 — Revision:**
+If the user asks for changes — more depth, different tone, additional sources, restructuring — revise precisely and show what changed.
+
+## QUALITY STANDARDS:
+- Every factual claim MUST have a citation. Never fabricate sources — if you cannot verify a source, say so and describe the type of source that would apply.
+- Use sophisticated academic vocabulary appropriate to the field
+- Vary sentence structure; avoid repetitive phrasing
+- Paragraphs should be substantive (5–8 sentences), not thin
+- Transitions between sections must be smooth and logical
+- Arguments must be logically structured with evidence, reasoning, and conclusion
+
+## CONVERSATION HISTORY:
 ${history}
 
 User: ${text}
@@ -141,7 +209,7 @@ ResearchAI:`;
 
     setMessages(prev => [...prev, {
       role: 'assistant',
-      content: typeof result === 'string' ? result : result?.response || 'Sorry, I had trouble generating research. Please try again.',
+      content: typeof result === 'string' ? result : result?.response || 'Sorry, I had trouble with that. Please try again.',
     }]);
     setLoading(false);
   };
@@ -152,6 +220,7 @@ ResearchAI:`;
 
   const canSend = (input.trim() || attachments.length > 0) && !loading && !uploading;
   const showSuggestions = messages.length === 1;
+  const hasPaper = messages.some(m => m.role === 'assistant' && m.content.length > 300 && messages.indexOf(m) > 0);
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)]">
@@ -161,8 +230,8 @@ ResearchAI:`;
           <FlaskConical className="w-4 h-4 text-accent-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="font-semibold text-foreground">Research Assistant</h1>
-          <p className="text-xs text-muted-foreground">Source-grounded research with accurate citations · powered by live web search</p>
+          <h1 className="font-semibold text-foreground">Research & Paper Writer</h1>
+          <p className="text-xs text-muted-foreground">Publication-quality papers · live web research · accurate citations</p>
         </div>
 
         {/* Citation Style Selector */}
@@ -182,9 +251,19 @@ ResearchAI:`;
             </button>
           ))}
         </div>
-        <Badge variant="secondary" className="text-xs hidden sm:flex">
-          {citationStyle} · Live Search
-        </Badge>
+
+        <div className="flex items-center gap-2">
+          {hasPaper && (
+            <Button variant="outline" size="sm" onClick={exportPaper} className="gap-1.5 text-xs h-8">
+              <FileDown className="w-3.5 h-3.5" />
+              Export
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={resetConversation} className="gap-1.5 text-xs h-8 text-muted-foreground">
+            <RotateCcw className="w-3.5 h-3.5" />
+            New
+          </Button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -212,9 +291,9 @@ ResearchAI:`;
             <div className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
               <FlaskConical className="w-3.5 h-3.5 text-accent" />
             </div>
-            <div className="flex gap-1 items-center text-muted-foreground">
+            <div className="flex gap-2 items-center text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Researching sources…</span>
+              <span className="text-sm">Researching and writing…</span>
             </div>
           </div>
         )}
@@ -261,7 +340,7 @@ ResearchAI:`;
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Enter a research topic, question, or paste assignment instructions…"
+            placeholder="Describe your topic, paste assignment instructions, or ask for revisions…"
             rows={1}
             className="flex-1 bg-transparent text-sm resize-none outline-none text-foreground placeholder:text-muted-foreground max-h-40"
             style={{ height: 'auto', minHeight: '24px' }}
@@ -277,7 +356,7 @@ ResearchAI:`;
           </Button>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-2">
-          Attach assignment rubrics or prompts for context · Citations in <strong>{citationStyle}</strong> format
+          Attach rubrics, prompts, or sources · Citations in <strong>{citationStyle}</strong> · Powered by live web research
         </p>
       </div>
     </div>
