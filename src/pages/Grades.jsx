@@ -55,13 +55,13 @@ export default function Grades() {
     ? assignments
     : assignments.filter(a => a.course_id === selectedCourse);
 
-  const gradedAll = assignments.filter(a => a.grade != null);
+  const gradedAll = assignments.filter(a => a.grade != null && a.grade > 0 && a.status === 'graded');
   const overallAvg = gradedAll.length > 0
     ? (gradedAll.reduce((s, a) => s + a.grade, 0) / gradedAll.length)
     : null;
 
   const courseStats = courses.map(c => {
-    const graded = assignments.filter(a => a.course_id === c.id && a.grade != null);
+    const graded = assignments.filter(a => a.course_id === c.id && a.grade != null && a.grade > 0 && a.status === 'graded');
     const avg = graded.length > 0 ? graded.reduce((s, a) => s + a.grade, 0) / graded.length : null;
     return { ...c, avg, graded: graded.length, total: assignments.filter(a => a.course_id === c.id).length };
   });
