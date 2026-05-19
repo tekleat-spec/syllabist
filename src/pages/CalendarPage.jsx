@@ -44,10 +44,11 @@ export default function CalendarPage() {
     queryFn: () => base44.entities.Course.list(),
   });
 
-  // Merge assignments as events for display
+  // Merge assignments as events, but skip any assignment that already has a CalendarEvent pointing to it
   const allEvents = useMemo(() => {
+    const coveredAssignmentIds = new Set(events.map(e => e.assignment_id).filter(Boolean));
     const assignmentEvents = assignments
-      .filter(a => a.due_date)
+      .filter(a => a.due_date && !coveredAssignmentIds.has(a.id))
       .map(a => ({
         id: `a-${a.id}`,
         assignmentId: a.id,
