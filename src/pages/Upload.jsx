@@ -280,18 +280,19 @@ export default function Upload() {
         properties: {
           grades: {
             type: 'array',
-            description: 'Every graded item found in the gradebook',
+            description: 'ALL items in the gradebook — both graded and ungraded/pending. Include every row.',
             items: {
               type: 'object',
               properties: {
                 title: { type: 'string', description: 'Assignment/exam/quiz name exactly as shown' },
                 type: { type: 'string', enum: ['homework', 'exam', 'quiz', 'project', 'paper', 'presentation', 'lab', 'reading', 'other'] },
-                grade: { type: 'number', description: 'Numeric grade (0-100 scale, convert if needed)' },
-                points_earned: { type: 'number', description: 'Points earned if shown' },
-                points_possible: { type: 'number', description: 'Points possible if shown' },
+                grade: { type: 'number', description: 'Numeric percentage grade on 0-100 scale. Omit (do not include the field) if not yet graded, not submitted, or shown as dash/blank/N/A.' },
+                points_earned: { type: 'number', description: 'Points earned. Omit if not graded yet.' },
+                points_possible: { type: 'number', description: 'Maximum points possible. Include even for ungraded items if shown.' },
                 weight: { type: 'number', description: 'Weight as % of final grade if shown' },
                 due_date: { type: 'string', description: 'Due date as ISO string if visible' },
-              }
+              },
+              required: ['title']
             }
           }
         }
@@ -311,31 +312,40 @@ export default function Upload() {
     let updated = 0;
     let created = 0;
 
+    // Normalize title for fuzzy matching
+    const normalize = s => s?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+
     for (const item of gradeItems) {
-      if (item.grade == null && item.points_earned == null) continue;
+      if (!item.title) continue;
 
-      // Fuzzy match: normalize titles for comparison
-      const normalize = s => s?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-      const match = existing.find(a => normalize(a.title) === normalize(item.title));
-
+      // Compute grade percentage if possible
       const gradeValue = item.grade != null
         ? item.grade
-        : (item.points_earned != null && item.points_possible)
-          ? (item.points_earned / item.points_possible) * 100
+        : (item.points_earned != null && item.points_possible && item.points_possible > 0)
+          ? parseFloat(((item.points_earned / item.points_possible) * 100).toFixed(2))
           : null;
 
-      if (gradeValue == null) continue;
+      const hasGrade = gradeValue != null;
+
+      const match = existing.find(a => normalize(a.title) === normalize(item.title));
 
       if (match) {
-        await base44.entities.Assignment.update(match.id, {
-          grade: parseFloat(gradeValue.toFixed(2)),
-          ...(item.points_earned != null && { points_earned: item.points_earned }),
-          ...(item.points_possible != null && { max_points: item.points_possible }),
-          status: 'graded',
-        });
-        updated++;
-      } else {
-        // Create new assignment with the grade
+        // Only update fields that the gradebook actually provides
+        const updatePayload = {};
+        if (hasGrade) {
+          updatePayload.grade = parseFloat(gradeValue.toFixed(2));
+          updatePayload.status = 'graded';
+        }
+        if (item.points_earned != null) updatePayload.points_earned = item.points_earned;
+        if (item.points_possible != null) updatePayload.max_points = item.points_possible;
+        if (item.weight != null) updatePayload.weight = item.weight;
+
+        if (Object.keys(updatePayload).length > 0) {
+          await base44.entities.Assignment.update(match.id, updatePayload);
+          updated++;
+        }
+      } else if (hasGrade) {
+        // Only create a new assignment if we actually have a grade for it
         await base44.entities.Assignment.create({
           title: item.title,
           course_id: targetCourseId,
