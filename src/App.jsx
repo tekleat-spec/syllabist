@@ -70,7 +70,15 @@ const AuthenticatedApp = () => {
 
 function App() {
   useEffect(() => {
-    document.documentElement.classList.remove('dark');
+    // Sync with system dark mode preference
+    const applyTheme = (dark) => {
+      document.documentElement.classList.toggle('dark', dark);
+    };
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    applyTheme(mq.matches);
+    const handler = (e) => applyTheme(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, []);
 
   return (
