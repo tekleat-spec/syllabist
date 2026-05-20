@@ -74,7 +74,7 @@ export default function AiTutor() {
   const [messages, setMessages] = useState([WELCOME]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [attachments, setAttachments] = useState([]); // [{name, url, isImage}]
+  const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
@@ -167,14 +167,14 @@ Guidelines:
   const showSuggestions = messages.length === 1;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] bg-gradient-to-b from-primary/5 via-background to-background">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-border flex-shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-primary-foreground" />
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-border/60 flex-shrink-0 bg-white/60 dark:bg-card/60 backdrop-blur">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-md shadow-primary/30">
+          <Sparkles className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="font-semibold text-foreground">AI Study Tutor</h1>
+          <h1 className="font-bold text-foreground text-lg">Syllabist ✨</h1>
           <p className="text-xs text-muted-foreground">{courses.length} courses · {assignments.length} assignments · {documents.length} documents loaded</p>
         </div>
       </div>
@@ -186,12 +186,12 @@ Guidelines:
         ))}
 
         {showSuggestions && (
-          <div className="flex flex-wrap gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-4">
             {suggestedPrompts.map(p => (
               <button
                 key={p}
                 onClick={() => { setInput(p); textareaRef.current?.focus(); }}
-                className="text-xs px-3 py-1.5 rounded-full border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="text-xs px-4 py-2 rounded-full border border-primary/30 bg-primary/8 hover:bg-primary/15 text-primary font-medium transition-all hover:shadow-sm hover:shadow-primary/20"
               >
                 {p}
               </button>
@@ -201,12 +201,13 @@ Guidelines:
 
         {loading && (
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
+              <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <div className="flex gap-1 items-center text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Thinking…</span>
+            <div className="flex gap-1 items-center bg-white dark:bg-card border border-border/60 rounded-2xl px-4 py-2 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay:'0ms'}} />
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay:'150ms'}} />
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay:'300ms'}} />
             </div>
           </div>
         )}
@@ -216,7 +217,6 @@ Guidelines:
 
       {/* Input */}
       <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-border">
-        {/* Attachment previews */}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {attachments.map((a, i) => (
@@ -234,8 +234,7 @@ Guidelines:
           </div>
         )}
 
-        <div className="flex items-end gap-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
-          {/* Hidden file input */}
+        <div className="flex items-end gap-2 bg-white dark:bg-card border border-border/80 rounded-2xl px-4 py-3 shadow-md shadow-black/5">
           <input
             ref={fileInputRef}
             type="file"
