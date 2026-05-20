@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import usePullToRefresh from '@/hooks/usePullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, Trash2, Download, Sparkles, Eye, MoreVertical, Loader2 } from 'lucide-react';
@@ -16,6 +17,9 @@ import ReactMarkdown from 'react-markdown';
 
 export default function Documents() {
   const queryClient = useQueryClient();
+  const { containerRef, refreshing, onTouchStart, onTouchMove, onTouchEnd } = usePullToRefresh(
+    () => queryClient.invalidateQueries()
+  );
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [generating, setGenerating] = useState(null);
   const [courseFilter, setCourseFilter] = useState('all');
@@ -73,7 +77,16 @@ Please create well-structured, detailed ${typeLabels[generationType]} using mark
   };
 
   return (
-    <div>
+    <div
+      ref={containerRef}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      style={{ touchAction: 'pan-y' }}
+    >
+      {refreshing && (
+        <div className="flex justify-center py-3 text-xs text-muted-foreground">Refreshing…</div>
+      )}
       <PageHeader
         title="Documents"
         subtitle="Your uploaded materials and AI-generated content"

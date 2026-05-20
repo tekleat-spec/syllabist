@@ -88,5 +88,20 @@
   body {
     @apply bg-background text-foreground font-sans;
     font-family: var(--font-sans);
+    overscroll-behavior: none;
+  }
+
+  button, a, [data-lucide] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Hide scrollbars globally while keeping scroll functionality */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
   }
 }

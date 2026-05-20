@@ -7,14 +7,14 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       {/* Desktop sidebar */}
       <div className="hidden md:block">
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </div>
 
       {/* Mobile nav */}
-      <div className="md:hidden">
+      <div className="md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <MobileNav />
       </div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Calendar, GraduationCap, FileText, Upload } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Calendar, GraduationCap, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -23,6 +23,7 @@ export default function MobileNav() {
             <Link
               key={path}
               to={path}
+              onClick={() => { if (isActive) window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className={cn(
                 'flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg transition-colors',
                 isActive ? 'text-primary' : 'text-muted-foreground'

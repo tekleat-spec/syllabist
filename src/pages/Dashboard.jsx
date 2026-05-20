@@ -1,6 +1,7 @@
 import React from 'react';
+import usePullToRefresh from '@/hooks/usePullToRefresh';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, Calendar, GraduationCap, FileText, Clock, AlertTriangle, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,11 @@ import { format, isPast, isFuture, differenceInDays } from 'date-fns';
 import { motion } from 'framer-motion';
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
+  const { containerRef, refreshing, onTouchStart, onTouchMove, onTouchEnd } = usePullToRefresh(
+    () => queryClient.invalidateQueries()
+  );
+
   const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
     queryFn: () => base44.entities.Course.list('-created_date'),
@@ -42,7 +48,13 @@ export default function Dashboard() {
 
   if (!hasData) {
     return (
-      <div>
+      <div
+        ref={containerRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{ touchAction: 'pan-y' }}
+      >
         <PageHeader title="Dashboard" subtitle="Your study command center" />
         <EmptyState
           icon={Upload}
@@ -62,7 +74,16 @@ export default function Dashboard() {
   }
 
   return (
-    <div>
+    <div
+      ref={containerRef}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      style={{ touchAction: 'pan-y' }}
+    >
+      {refreshing && (
+        <div className="flex justify-center py-3 text-xs text-muted-foreground">Refreshing…</div>
+      )}
       <PageHeader title="Dashboard" subtitle="Your study command center" />
 
       {/* Stats */}
