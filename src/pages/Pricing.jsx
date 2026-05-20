@@ -139,18 +139,18 @@ export default function Pricing() {
           </div>
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-1">
-              <Zap className="w-5 h-5 fill-amber-400 text-amber-400" />
-              <h2 className="text-lg font-bold">Pro Monthly</h2>
+              <Zap className="w-5 h-5 fill-amber-500 text-amber-500" />
+              <h2 className="text-lg font-bold text-gray-900">Pro Monthly</h2>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold">$9.99</span>
-              <span className="text-muted-foreground">/month</span>
+              <span className="text-4xl font-bold text-gray-900">$9.99</span>
+              <span className="text-gray-500">/month</span>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">Cancel anytime, no commitment</p>
+            <p className="text-sm text-gray-500 mt-1">Cancel anytime, no commitment</p>
           </div>
           <ul className="space-y-2.5 flex-1 mb-8">
             {PRO_FEATURES.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex items-center gap-2.5 text-sm font-medium">
+              <li key={text} className="flex items-center gap-2.5 text-sm font-semibold text-gray-800">
                 <Icon className="w-4 h-4 text-amber-500 shrink-0" /> {text}
               </li>
             ))}
