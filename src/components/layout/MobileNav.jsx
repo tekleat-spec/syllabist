@@ -64,19 +64,19 @@ export default function MobileNav() {
                 )}
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{label}</span>
+                <span className="text-xs font-medium">{label}</span>
               </Link>
             );
           })}
           <button
-            onClick={() => setShowMore(v => !v)}
-            className={cn(
-              'flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg transition-colors',
-              (showMore || isMoreActive) ? 'text-primary' : 'text-muted-foreground'
-            )}
+          onClick={() => setShowMore(v => !v)}
+          className={cn(
+            'flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg transition-colors',
+            (showMore || isMoreActive) ? 'text-primary' : 'text-muted-foreground'
+          )}
           >
-            {showMore ? <X className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
-            <span className="text-[10px] font-medium">More</span>
+          {showMore ? <X className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
+          <span className="text-xs font-medium">More</span>
           </button>
         </div>
       </nav>
@@ -117,7 +117,7 @@ export default function MobileNav() {
                       )}
                     >
                       <Icon className="w-5 h-5" />
-                      <span className="text-[10px] font-medium text-center leading-tight">{label}</span>
+                      <span className="text-xs font-medium text-center leading-tight">{label}</span>
                     </button>
                   );
                 })}

@@ -33,10 +33,25 @@ export default function CourseDialog({ open, onOpenChange, course }) {
     mutationFn: (data) => isEdit
       ? base44.entities.Course.update(course.id, data)
       : base44.entities.Course.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['courses'] });
+      const prev = queryClient.getQueryData(['courses']);
+      if (isEdit) {
+        queryClient.setQueryData(['courses'], old =>
+          (old || []).map(c => c.id === course.id ? { ...c, ...data } : c)
+        );
+      } else {
+        const tempItem = { ...data, id: `temp_${Date.now()}`, created_date: new Date().toISOString() };
+        queryClient.setQueryData(['courses'], old => [tempItem, ...(old || [])]);
+      }
       onOpenChange(false);
+      return { prev };
     },
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(['courses'], context.prev);
+      onOpenChange(true);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['courses'] }),
   });
 
   const handleSubmit = (e) => {

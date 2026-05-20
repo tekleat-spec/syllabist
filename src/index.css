@@ -146,4 +146,38 @@
   *::-webkit-scrollbar {
     display: none;
   }
+
+  /* Minimum 44px touch targets on mobile */
+  @media (max-width: 767px) {
+    button, [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    input:not([type="checkbox"]):not([type="radio"]),
+    textarea,
+    select {
+      min-height: 44px;
+    }
+    /* Compact icon-only buttons should not grow wider */
+    button[data-size="icon"], .h-7, .h-8 {
+      min-width: 44px;
+    }
+  }
+
+  /* Clear visible focus ring for keyboard/a11y navigation */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: calc(var(--radius) - 2px);
+  }
+
+  /* Ensure nav link tap areas are full-height on mobile */
+  @media (max-width: 767px) {
+    nav a {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
 }
