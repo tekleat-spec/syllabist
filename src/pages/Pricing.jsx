@@ -143,10 +143,10 @@ export default function Pricing() {
               <h2 className="text-lg font-bold">Pro Annual</h2>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold">$6.67</span>
-              <span className="text-muted-foreground">/month</span>
+              <span className="text-4xl font-bold">$79.99</span>
+              <span className="text-muted-foreground">/year</span>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">Billed $79.99/year · <span className="text-green-600 font-medium">Save 33% vs monthly</span></p>
+            <p className="text-sm text-muted-foreground mt-1">Just $6.67/mo · <span className="text-green-600 font-medium">Save 33% vs $9.99/mo monthly</span></p>
           </div>
           <ul className="space-y-2.5 flex-1 mb-8">
             {PRO_FEATURES.map(({ icon: Icon, text }) => (
