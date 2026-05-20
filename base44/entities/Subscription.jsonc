@@ -1,0 +1,47 @@
+{
+  "name": "Subscription",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the subscribed user (from auth session)"
+    },
+    "checkout_id": {
+      "type": "string",
+      "description": "Wix checkout session ID \u2014 used to correlate order_approved webhook"
+    },
+    "subscription_id": {
+      "type": "string",
+      "description": "Wix subscription contract ID \u2014 stored from order_approved webhook"
+    },
+    "plan": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "annual"
+      ],
+      "description": "Subscription plan type"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "active",
+        "canceled",
+        "ended"
+      ],
+      "default": "pending",
+      "description": "Current subscription status"
+    },
+    "activated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the subscription was activated"
+    }
+  },
+  "required": [
+    "user_email",
+    "checkout_id",
+    "plan"
+  ]
+}

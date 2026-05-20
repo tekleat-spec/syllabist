@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Sparkles, LayoutDashboard, BookOpen, Calendar, GraduationCap, 
-  FileText, Upload, ChevronLeft, ChevronRight, ScrollText, Wrench, CalendarDays, FlaskConical
+  FileText, Upload, ChevronLeft, ChevronRight, ScrollText, Wrench, CalendarDays, FlaskConical, CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -20,6 +20,7 @@ const navItems = [
   { path: '/doc-qa', icon: BookOpen, label: 'Document Q&A' },
   { path: '/workshop', icon: Wrench, label: 'Workshop' },
   { path: '/audit', icon: ScrollText, label: 'Audit Log' },
+  { path: '/pricing', icon: CreditCard, label: '⭐ Upgrade to Pro' },
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {

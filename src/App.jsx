@@ -19,6 +19,8 @@ import AiTutor from '@/pages/AiTutor';
 import StudyScheduler from '@/pages/StudyScheduler';
 import DocumentQA from '@/pages/DocumentQA';
 import Research from '@/pages/Research';
+import Pricing from '@/pages/Pricing';
+import ThankYou from '@/pages/ThankYou';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -55,6 +57,8 @@ const AuthenticatedApp = () => {
         <Route path="/scheduler" element={<StudyScheduler />} />
         <Route path="/doc-qa" element={<DocumentQA />} />
         <Route path="/research" element={<Research />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/thank-you" element={<ThankYou />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
