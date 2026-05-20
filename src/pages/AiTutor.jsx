@@ -167,10 +167,10 @@ Guidelines:
   const showSuggestions = messages.length === 1;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] bg-gradient-to-b from-primary/5 via-background to-background">
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] bg-gradient-to-b from-amber-50 via-orange-50/30 to-background dark:from-amber-950/20 dark:via-background dark:to-background">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-border/60 flex-shrink-0 bg-white/60 dark:bg-card/60 backdrop-blur">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-md shadow-primary/30">
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-amber-100 dark:border-border/60 flex-shrink-0 bg-amber-50/80 dark:bg-card/60 backdrop-blur">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-orange-300/50">
           <Sparkles className="w-5 h-5 text-white" />
         </div>
         <div>
@@ -191,7 +191,7 @@ Guidelines:
               <button
                 key={p}
                 onClick={() => { setInput(p); textareaRef.current?.focus(); }}
-                className="text-xs px-4 py-2 rounded-full border border-primary/30 bg-primary/8 hover:bg-primary/15 text-primary font-medium transition-all hover:shadow-sm hover:shadow-primary/20"
+                className="text-xs px-4 py-2 rounded-full border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium transition-all hover:shadow-sm dark:border-amber-800 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 dark:text-amber-400"
               >
                 {p}
               </button>
@@ -201,13 +201,13 @@ Guidelines:
 
         {loading && (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div className="flex gap-1 items-center bg-white dark:bg-card border border-border/60 rounded-2xl px-4 py-2 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay:'0ms'}} />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay:'150ms'}} />
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{animationDelay:'300ms'}} />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{animationDelay:'0ms'}} />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{animationDelay:'150ms'}} />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{animationDelay:'300ms'}} />
             </div>
           </div>
         )}
