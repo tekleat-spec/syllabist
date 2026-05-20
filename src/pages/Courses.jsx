@@ -33,7 +33,14 @@ export default function Courses() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Course.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['courses'] }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['courses'] });
+      const prev = queryClient.getQueryData(['courses']);
+      queryClient.setQueryData(['courses'], old => (old || []).filter(c => c.id !== id));
+      return { prev };
+    },
+    onError: (_err, _id, context) => queryClient.setQueryData(['courses'], context.prev),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['courses'] }),
   });
 
   const getAssignmentCount = (courseId) => assignments.filter(a => a.course_id === courseId).length;

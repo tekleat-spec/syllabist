@@ -43,12 +43,30 @@ export default function Grades() {
 
   const updateGrade = useMutation({
     mutationFn: ({ id, grade }) => base44.entities.Assignment.update(id, { grade: parseFloat(grade), status: 'graded' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['assignments'] }),
+    onMutate: async ({ id, grade }) => {
+      await queryClient.cancelQueries({ queryKey: ['assignments'] });
+      const prev = queryClient.getQueryData(['assignments']);
+      queryClient.setQueryData(['assignments'], old =>
+        (old || []).map(a => a.id === id ? { ...a, grade: parseFloat(grade), status: 'graded' } : a)
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, context) => queryClient.setQueryData(['assignments'], context.prev),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['assignments'] }),
   });
 
   const updateStatus = useMutation({
     mutationFn: ({ id, status }) => base44.entities.Assignment.update(id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['assignments'] }),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['assignments'] });
+      const prev = queryClient.getQueryData(['assignments']);
+      queryClient.setQueryData(['assignments'], old =>
+        (old || []).map(a => a.id === id ? { ...a, status } : a)
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, context) => queryClient.setQueryData(['assignments'], context.prev),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['assignments'] }),
   });
 
   const filteredAssignments = selectedCourse === 'all'

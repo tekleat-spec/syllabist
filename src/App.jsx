@@ -69,10 +69,7 @@ const AuthenticatedApp = () => {
 };
 
 function App() {
-  useEffect(() => {
-    // Force light mode
-    document.documentElement.classList.remove('dark');
-  }, []);
+  // Theme is controlled purely via CSS @media (prefers-color-scheme: dark) in index.css
 
   return (
     <AuthProvider>

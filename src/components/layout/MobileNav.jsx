@@ -29,6 +29,20 @@ export default function MobileNav() {
   const navigate = useNavigate();
   const [showMore, setShowMore] = useState(false);
   const isMoreActive = moreItems.some(i => i.path === location.pathname);
+  const scrollPositions = React.useRef({});
+
+  // Save scroll position when leaving a route, restore when arriving
+  React.useEffect(() => {
+    const pos = scrollPositions.current[location.pathname];
+    if (pos !== undefined) {
+      requestAnimationFrame(() => window.scrollTo({ top: pos, behavior: 'instant' }));
+    }
+  }, [location.pathname]);
+
+  const handleTabNav = (targetPath) => {
+    scrollPositions.current[location.pathname] = window.scrollY;
+    setShowMore(false);
+  };
 
   return (
     <>
@@ -40,7 +54,10 @@ export default function MobileNav() {
               <Link
                 key={path}
                 to={path}
-                onClick={() => { setShowMore(false); if (isActive) window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                onClick={() => {
+                  if (isActive) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+                  handleTabNav(path);
+                }}
                 className={cn(
                   'flex flex-col items-center gap-0.5 py-2 px-3 rounded-lg transition-colors',
                   isActive ? 'text-primary' : 'text-muted-foreground'
