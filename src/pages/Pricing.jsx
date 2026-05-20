@@ -131,22 +131,22 @@ export default function Pricing() {
           </Button>
         </motion.div>
 
-        {/* Pro Annual */}
+        {/* Pro Monthly - highlighted */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="rounded-2xl border-2 border-amber-400 bg-gradient-to-b from-amber-50 to-white p-8 flex flex-col relative shadow-lg shadow-amber-100">
           <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-            <span className="bg-amber-400 text-amber-900 text-xs font-bold px-4 py-1 rounded-full shadow">MOST POPULAR · 14-DAY FREE TRIAL</span>
+            <span className="bg-amber-400 text-amber-900 text-xs font-bold px-4 py-1 rounded-full shadow">MOST POPULAR</span>
           </div>
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-1">
-              <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-              <h2 className="text-lg font-bold">Pro Annual</h2>
+              <Zap className="w-5 h-5 fill-amber-400 text-amber-400" />
+              <h2 className="text-lg font-bold">Pro Monthly</h2>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold">$79.99</span>
-              <span className="text-muted-foreground">/year</span>
+              <span className="text-4xl font-bold">$9.99</span>
+              <span className="text-muted-foreground">/month</span>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">Just $6.67/mo · <span className="text-green-600 font-medium">Save 33% vs $9.99/mo monthly</span></p>
+            <p className="text-sm text-muted-foreground mt-1">Cancel anytime, no commitment</p>
           </div>
           <ul className="space-y-2.5 flex-1 mb-8">
             {PRO_FEATURES.map(({ icon: Icon, text }) => (
@@ -158,22 +158,28 @@ export default function Pricing() {
           <Button
             className="w-full bg-amber-400 hover:bg-amber-500 text-amber-900 font-bold text-base h-12 shadow-md shadow-amber-200"
             disabled={!!loading || !!subscription}
-            onClick={() => handleSubscribe('annual')}
+            onClick={() => handleSubscribe('monthly')}
           >
-            {loading === 'annual' ? <Loader2 className="w-4 h-4 animate-spin" /> :
-              subscription ? '✓ Already Subscribed' : <>Start Free Trial <ArrowRight className="w-4 h-4 ml-1" /></>}
+            {loading === 'monthly' ? <Loader2 className="w-4 h-4 animate-spin" /> :
+              subscription ? '✓ Already Subscribed' : <>Get Started <ArrowRight className="w-4 h-4 ml-1" /></>}
           </Button>
-          <p className="text-center text-xs text-muted-foreground mt-3">14 days free · cancel anytime · no stress</p>
+          <p className="text-center text-xs text-muted-foreground mt-3">Cancel anytime · no stress</p>
         </motion.div>
       </div>
 
-      {/* Monthly option */}
+      {/* Annual option */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-        className="text-center mb-10">
-        <p className="text-sm text-muted-foreground mb-2">Prefer month-to-month?</p>
-        <Button variant="outline" size="sm" disabled={!!loading || !!subscription} onClick={() => handleSubscribe('monthly')}
-          className="border-amber-200 text-amber-700 hover:bg-amber-50">
-          {loading === 'monthly' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Monthly Plan — $9.99/mo'}
+        className="mb-10 rounded-2xl border border-border bg-card p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+            <p className="font-semibold text-sm">Annual Plan — Best Value</p>
+          </div>
+          <p className="text-xs text-muted-foreground">$79.99/year · just $6.67/mo · <span className="text-green-600 font-medium">save 33%</span> · 14-day free trial</p>
+        </div>
+        <Button variant="outline" size="sm" disabled={!!loading || !!subscription} onClick={() => handleSubscribe('annual')}
+          className="border-amber-200 text-amber-700 hover:bg-amber-50 whitespace-nowrap">
+          {loading === 'annual' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Switch to Annual'}
         </Button>
       </motion.div>
 
