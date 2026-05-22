@@ -39,6 +39,11 @@ export default function Pricing() {
       const isAuthed = await base44.auth.isAuthenticated();
       if (!isAuthed) { setChecking(false); return; }
       const user = await base44.auth.me();
+      if (user.role === 'admin') {
+        setSubscription({ plan: 'annual', status: 'active' });
+        setChecking(false);
+        return;
+      }
       const subs = await base44.entities.Subscription.filter({ user_email: user.email });
       const active = subs.find(s => s.status === 'active');
       setSubscription(active || null);
