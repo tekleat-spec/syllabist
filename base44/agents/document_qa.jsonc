@@ -25,12 +25,7 @@
   "selected_workspace_skill_ids": [
     "6a0f7d70ee54ea3fc0785813",
     "6a0f84cf787436f7493c3e68",
-    "6a0f7dbc855591035a986cf0",
-    "6a0f8914aaff35f50d3968d8",
-    "6a0f80105c1c9db355de1e42",
-    "6a0f7d4cf3e3fde294a98c65",
-    "6a0f8bf438b0947ac3e859ca",
-    "6a0f8a08c1df12879993697b"
+    "6a0f7dbc855591035a986cf0"
   ],
   "model": "automatic",
   "memory_config": {
@@ -38,10 +33,5 @@
     "scope": "both",
     "instructions": null
   },
-  "context_files": [],
-  "app_user_connector_configs": [],
-  "whatsapp_greeting": "",
-  "telegram_greeting": "",
-  "line_greeting": "",
   "name": "document_qa"
 }
