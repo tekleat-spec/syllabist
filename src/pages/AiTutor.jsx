@@ -104,6 +104,46 @@ export default function AiTutor() {
 
   const removeAttachment = (idx) => setAttachments(prev => prev.filter((_, i) => i !== idx));
 
+  const sendText = async (text) => {
+    if (!text.trim() || loading) return;
+
+    const userMsg = { role: 'user', content: text, attachments: [] };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setAttachments([]);
+    setLoading(true);
+
+    const context = buildContext({ courses, assignments, documents, workshopItems });
+
+    const systemPrompt = `You are Syllabist, a knowledgeable and encouraging AI tutor. You have been given the student's FULL academic materials — treat them exactly as you would treat a document you can read, comprehend, and reason over.
+
+${context ? `Here is the student's complete academic context, including full document content:\n\n${context}` : 'The student has no courses or assignments loaded yet.'}
+
+Guidelines:
+- You have the FULL content of every uploaded document and workshop material above. Read and use it deeply.
+- When asked to explain a concept, pull the actual explanation from the materials and elaborate on it.
+- When asked to write, draft, or create something (essay, code, answers, notes), use the materials as your source — just like a student who has read them.
+- When asked to quiz the student, generate questions directly from the actual content above.
+- When asked to summarize, produce a thorough summary based on the real content, not generic text.
+- Use markdown formatting (bold, lists, headers, code blocks) where helpful.
+- Always cite which document or material your answer comes from.
+- Be encouraging and supportive.
+- If you don't have enough data in the provided context to answer accurately, say so clearly.`;
+
+    const history = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role, content: m.content }));
+
+    history.push({ role: 'user', content: text });
+
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `${systemPrompt}\n\n---\nConversation so far:\n${history.map(m => `${m.role === 'user' ? 'Student' : 'Tutor'}: ${m.content}`).join('\n\n')}\n\nTutor:`,
+    });
+
+    setMessages(prev => [...prev, { role: 'assistant', content: typeof result === 'string' ? result : result?.response || 'Sorry, I had trouble responding.' }]);
+    setLoading(false);
+  };
+
   const send = async () => {
     const text = input.trim();
     if ((!text && attachments.length === 0) || loading) return;
@@ -190,7 +230,7 @@ Guidelines:
             {suggestedPrompts.map(p => (
               <button
                 key={p}
-                onClick={() => { setInput(p); textareaRef.current?.focus(); }}
+                onClick={() => sendText(p)}
                 className="text-xs px-4 py-2 rounded-full border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium transition-all hover:shadow-sm dark:border-amber-800 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 dark:text-amber-400"
               >
                 {p}
