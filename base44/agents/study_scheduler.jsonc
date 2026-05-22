@@ -21,5 +21,15 @@
       ]
     }
   ],
+  "selected_skill_names": [],
+  "selected_workspace_skill_ids": [
+    "6a0f7d70ee54ea3fc0785813"
+  ],
+  "model": "automatic",
+  "memory_config": {
+    "enabled": true,
+    "scope": "both",
+    "instructions": null
+  },
   "name": "study_scheduler"
 }
