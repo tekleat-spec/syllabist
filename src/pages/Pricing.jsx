@@ -39,8 +39,8 @@ export default function Pricing() {
       const isAuthed = await base44.auth.isAuthenticated();
       if (!isAuthed) { setChecking(false); return; }
       const user = await base44.auth.me();
-      if (user.role === 'admin') {
-        setSubscription({ plan: 'annual', status: 'active' });
+      if (user.role === 'admin' || user.access_tier === 'pro') {
+        setSubscription({ plan: user.role === 'admin' ? 'annual' : 'pro', status: 'active' });
         setChecking(false);
         return;
       }

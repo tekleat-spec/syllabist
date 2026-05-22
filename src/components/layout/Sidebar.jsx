@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Sparkles, LayoutDashboard, BookOpen, Calendar, GraduationCap, 
-  FileText, Upload, ChevronLeft, ChevronRight, ScrollText, Wrench, CalendarDays, FlaskConical, CreditCard, Settings2
+  FileText, Upload, ChevronLeft, ChevronRight, ScrollText, Wrench, CalendarDays, FlaskConical, CreditCard, Settings2, Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -24,8 +24,21 @@ const navItems = [
   { path: '/settings', icon: Settings2, label: 'Settings' },
 ];
 
+const adminNavItems = [
+  { path: '/admin/users', icon: Users, label: 'User Management' },
+];
+
 export default function Sidebar({ collapsed, onToggle }) {
   const location = useLocation();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    import('@/api/base44Client').then(({ base44 }) => {
+      base44.auth.me().then(u => setIsAdmin(u?.role === 'admin')).catch(() => {});
+    });
+  }, []);
+
+  const allItems = [...navItems, ...(isAdmin ? adminNavItems : [])];
 
   return (
     <motion.aside
@@ -54,7 +67,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {navItems.map(({ path, icon: Icon, label }) => {
+        {allItems.map(({ path, icon: Icon, label }) => {
           const isActive = location.pathname === path;
           return (
             <Link

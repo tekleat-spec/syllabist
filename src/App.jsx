@@ -23,6 +23,7 @@ const Research = lazy(() => import('@/pages/Research'));
 const Pricing = lazy(() => import('@/pages/Pricing'));
 const ThankYou = lazy(() => import('@/pages/ThankYou'));
 const Settings = lazy(() => import('@/pages/Settings'));
+const AdminUsers = lazy(() => import('@/pages/AdminUsers'));
 const PageNotFoundLazy = lazy(() => import('./lib/PageNotFound'));
 
 const AuthenticatedApp = () => {
@@ -68,6 +69,7 @@ const AuthenticatedApp = () => {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
         </Route>
         <Route path="*" element={<PageNotFoundLazy />} />
       </Routes>
