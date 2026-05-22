@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/shared/PageHeader';
+import MotivationalVideos from '@/components/shared/MotivationalVideos';
 import StatCard from '@/components/shared/StatCard';
 import EmptyState from '@/components/shared/EmptyState';
 import { format, isPast, isFuture, differenceInDays } from 'date-fns';
@@ -177,6 +178,8 @@ export default function Dashboard() {
           )}
         </Card>
       </div>
+
+      <MotivationalVideos />
     </div>
   );
 }
