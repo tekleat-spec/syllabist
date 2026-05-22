@@ -95,6 +95,8 @@ export default function Dashboard() {
         <StatCard icon={FileText} label="Documents" value={documents.length} />
       </div>
 
+      <MotivationalVideos />
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Upcoming Deadlines */}
         <Card className="lg:col-span-2 p-0 overflow-hidden">
@@ -179,7 +181,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <MotivationalVideos />
     </div>
   );
 }
