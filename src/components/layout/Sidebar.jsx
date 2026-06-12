@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Sparkles, LayoutDashboard, BookOpen, Calendar, GraduationCap, 
-  FileText, Upload, ChevronLeft, ChevronRight, ScrollText, Wrench, CalendarDays, FlaskConical, CreditCard, Settings2, Users
+  FileText, Upload, ChevronLeft, ChevronRight, ScrollText, Wrench, CalendarDays, FlaskConical, CreditCard, Settings2, Users, TrendingUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -13,6 +13,7 @@ const navItems = [
   { path: '/courses', icon: BookOpen, label: 'Courses' },
   { path: '/calendar', icon: Calendar, label: 'Calendar' },
   { path: '/grades', icon: GraduationCap, label: 'Grades' },
+  { path: '/insights', icon: TrendingUp, label: 'Insights' },
   { path: '/documents', icon: FileText, label: 'Documents' },
   { path: '/upload', icon: Upload, label: 'Upload' },
   { path: '/scheduler', icon: CalendarDays, label: 'Study Scheduler' },

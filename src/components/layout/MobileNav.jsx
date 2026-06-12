@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Calendar, GraduationCap, Sparkles, MoreHorizontal, Upload, FileText, CalendarDays, FlaskConical, Wrench, CreditCard, Settings2, ScrollText, X } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Calendar, GraduationCap, Sparkles, MoreHorizontal, Upload, FileText, CalendarDays, FlaskConical, Wrench, CreditCard, Settings2, ScrollText, X, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,6 +12,7 @@ const mainTabs = [
 ];
 
 const moreItems = [
+  { path: '/insights', icon: TrendingUp, label: 'Insights' },
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/upload', icon: Upload, label: 'Upload' },
   { path: '/documents', icon: FileText, label: 'Documents' },
