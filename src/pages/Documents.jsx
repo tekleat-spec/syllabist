@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import usePullToRefresh from '@/hooks/usePullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Trash2, Download, Sparkles, Eye, MoreVertical, Loader2 } from 'lucide-react';
+import { FileText, Trash2, Download, Sparkles, Eye, MoreVertical, Loader2, CheckSquare, Square, BookOpen, AlignLeft, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,10 @@ export default function Documents() {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [generating, setGenerating] = useState(null);
   const [courseFilter, setCourseFilter] = useState('all');
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkResult, setBulkResult] = useState(null);
+  const [bulkGenerating, setBulkGenerating] = useState(false);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents'],
@@ -71,6 +75,40 @@ Please create well-structured, detailed ${typeLabels[generationType]} using mark
 
   const filtered = courseFilter === 'all' ? documents : documents.filter(d => d.course_id === courseFilter);
 
+  const toggleSelect = (id) => setSelectedIds(prev =>
+    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+  );
+
+  const handleBulkGenerate = async (type) => {
+    const docs = filtered.filter(d => selectedIds.includes(d.id));
+    if (!docs.length) return;
+    setBulkGenerating(true);
+
+    const docsText = docs.map(d =>
+      `### ${d.title} (${d.type})\n${d.content_summary || 'No summary available.'}`
+    ).join('\n\n---\n\n');
+
+    const label = type === 'summary' ? 'a consolidated summary' : 'a comprehensive study guide';
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are an expert study assistant. The student has selected the following ${docs.length} documents and wants ${label} that synthesizes all of them into one cohesive document.
+
+${docsText}
+
+Instructions:
+- Merge and synthesize all content — don't just list each doc separately
+- Use clear markdown formatting with headers, bullets, and emphasis
+- For a study guide: include key concepts, definitions, important facts, and review questions at the end
+- For a summary: write flowing prose that captures the most important ideas across all documents
+- Be thorough but concise
+
+Documents included: ${docs.map(d => d.title).join(', ')}`,
+      model: 'claude_sonnet_4_6',
+    });
+
+    setBulkResult({ type, content: typeof result === 'string' ? result : result?.response || '', titles: docs.map(d => d.title) });
+    setBulkGenerating(false);
+  };
+
   const typeIcons = {
     syllabus: '📋', slides: '📊', notes: '📝', pdf: '📄', study_guide: '📚',
     paper_draft: '✍️', announcement: '📢', other: '📎',
@@ -91,17 +129,45 @@ Please create well-structured, detailed ${typeLabels[generationType]} using mark
         title="Documents"
         subtitle="Your uploaded materials and AI-generated content"
         actions={
-          <Select value={courseFilter} onValueChange={setCourseFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Filter by course" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Courses</SelectItem>
-              {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={courseFilter} onValueChange={setCourseFilter}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Filter by course" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Courses</SelectItem>
+                {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button
+              variant={selectionMode ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => { setSelectionMode(v => !v); setSelectedIds([]); }}
+            >
+              <CheckSquare className="w-4 h-4 mr-1.5" />
+              {selectionMode ? 'Cancel' : 'Select'}
+            </Button>
+          </div>
         }
       />
+
+      {/* Bulk action bar */}
+      {selectionMode && (
+        <div className="flex items-center gap-3 mb-4 p-3 bg-primary/5 border border-primary/20 rounded-xl flex-wrap">
+          <span className="text-sm font-medium text-primary">{selectedIds.length} selected</span>
+          <div className="flex gap-2 ml-auto flex-wrap">
+            <Button size="sm" variant="outline" disabled={selectedIds.length < 2 || bulkGenerating} onClick={() => handleBulkGenerate('summary')}>
+              {bulkGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <AlignLeft className="w-3.5 h-3.5 mr-1.5" />}
+              Combined Summary
+            </Button>
+            <Button size="sm" disabled={selectedIds.length < 2 || bulkGenerating} onClick={() => handleBulkGenerate('study_guide')}>
+              {bulkGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <BookOpen className="w-3.5 h-3.5 mr-1.5" />}
+              Study Guide
+            </Button>
+          </div>
+          {selectedIds.length < 2 && <p className="text-xs text-muted-foreground w-full">Select at least 2 documents to generate</p>}
+        </div>
+      )}
 
       {filtered.length === 0 && !isLoading ? (
         <EmptyState
@@ -120,7 +186,17 @@ Please create well-structured, detailed ${typeLabels[generationType]} using mark
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
               >
-                <Card className="p-5 hover:shadow-md transition-shadow group relative">
+                <Card
+                  className={`p-5 hover:shadow-md transition-shadow group relative cursor-pointer ${selectionMode && selectedIds.includes(doc.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+                  onClick={selectionMode ? () => toggleSelect(doc.id) : undefined}
+                >
+                  {selectionMode && (
+                    <div className="absolute top-3 left-3 z-10">
+                      {selectedIds.includes(doc.id)
+                        ? <CheckSquare className="w-5 h-5 text-primary" />
+                        : <Square className="w-5 h-5 text-muted-foreground" />}
+                    </div>
+                  )}
                   <div className="flex items-start justify-between mb-3">
                     <span className="text-2xl">{typeIcons[doc.type] || typeIcons.other}</span>
                     <DropdownMenu>
@@ -193,6 +269,24 @@ Please create well-structured, detailed ${typeLabels[generationType]} using mark
           })}
         </div>
       )}
+
+      {/* Bulk Result Dialog */}
+      <Dialog open={!!bulkResult} onOpenChange={() => setBulkResult(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {bulkResult?.type === 'study_guide' ? <BookOpen className="w-4 h-4 text-primary" /> : <AlignLeft className="w-4 h-4 text-primary" />}
+              {bulkResult?.type === 'study_guide' ? 'Consolidated Study Guide' : 'Combined Summary'}
+            </DialogTitle>
+            {bulkResult?.titles && (
+              <p className="text-xs text-muted-foreground pt-1">From: {bulkResult.titles.join(', ')}</p>
+            )}
+          </DialogHeader>
+          <div className="prose prose-sm max-w-none mt-4 dark:prose-invert">
+            <ReactMarkdown>{bulkResult?.content || ''}</ReactMarkdown>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Generated Content Viewer */}
       <Dialog open={!!selectedDoc} onOpenChange={() => setSelectedDoc(null)}>
