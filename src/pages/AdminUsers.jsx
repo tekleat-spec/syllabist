@@ -1,16 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Shield, Crown, User, Loader2, RefreshCw } from 'lucide-react';
+import { Shield, Crown, User, Loader2, RefreshCw, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import PageHeader from '@/components/shared/PageHeader';
 import { format } from 'date-fns';
 
 export default function AdminUsers() {
   const queryClient = useQueryClient();
   const [currentUser, setCurrentUser] = useState(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState(null);
 
   useEffect(() => {
     base44.auth.me().then(setCurrentUser);
@@ -46,6 +53,21 @@ export default function AdminUsers() {
     );
   }
 
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    setInviteMsg(null);
+    try {
+      await base44.users.inviteUser(inviteEmail.trim(), 'user');
+      setInviteMsg({ type: 'success', text: `Invite sent to ${inviteEmail.trim()}` });
+      setInviteEmail('');
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    } catch (e) {
+      setInviteMsg({ type: 'error', text: e.message || 'Failed to send invite.' });
+    }
+    setInviting(false);
+  };
+
   const getActiveSub = (email) => subscriptions.find(s => s.user_email === email && s.status === 'active');
 
   const isPro = (user) => user.access_tier === 'pro' || !!getActiveSub(user.email);
@@ -56,11 +78,52 @@ export default function AdminUsers() {
         title="User Management"
         subtitle={`${users.length} registered users`}
         actions={
-          <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-users', 'admin-subscriptions'] })}>
-            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => { setInviteOpen(true); setInviteMsg(null); }}>
+              <UserPlus className="w-4 h-4 mr-2" /> Invite User
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-users', 'admin-subscriptions'] })}>
+              <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+            </Button>
+          </div>
         }
       />
+
+      {/* Invite Dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Invite a User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">They'll receive an email to create their own account. Their data will be completely separate from yours.</p>
+            <div>
+              <Label htmlFor="invite-email">Email address</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="friend@example.com"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleInvite()}
+                className="mt-1"
+              />
+            </div>
+            {inviteMsg && (
+              <p className={`text-sm ${inviteMsg.type === 'success' ? 'text-green-600' : 'text-destructive'}`}>
+                {inviteMsg.text}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
+            <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
+              {inviting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
+              Send Invite
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
