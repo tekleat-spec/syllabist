@@ -1,208 +1,225 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Send, CalendarDays, Loader2, Sparkles } from 'lucide-react';
+import { CalendarDays, Loader2, Sparkles, RefreshCw, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { cn } from '@/lib/utils';
-import ScheduleCalendar from '@/components/scheduler/ScheduleCalendar';
+import { format, addDays, startOfWeek, isFuture, differenceInDays, parseISO } from 'date-fns';
+import WeeklyGrid from '@/components/scheduler/WeeklyGrid';
 
-const SUGGESTIONS = [
-  "Build me a study schedule for this week",
-  "What should I focus on most urgently?",
-  "I only have 2 hours per day — make a plan",
-  "Create a schedule avoiding weekends",
-];
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function StudyScheduler() {
-  const [conversation, setConversation] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [initializing, setInitializing] = useState(true);
-  const bottomRef = useRef(null);
-  const textareaRef = useRef(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [schedule, setSchedule] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [hoursPerDay, setHoursPerDay] = useState(3);
+  const [skipWeekends, setSkipWeekends] = useState(false);
 
-  useEffect(() => {
-    initConversation();
-  }, []);
+  const { data: courses = [] } = useQuery({ queryKey: ['courses'], queryFn: () => base44.entities.Course.list() });
+  const { data: assignments = [] } = useQuery({ queryKey: ['assignments'], queryFn: () => base44.entities.Assignment.list() });
+  const { data: documents = [] } = useQuery({ queryKey: ['documents'], queryFn: () => base44.entities.Document.list() });
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const weekStart = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset * 7);
+  const weekEnd = addDays(weekStart, 6);
+  const weekLabel = `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')}`;
 
-  const initConversation = async () => {
-    try {
-      const conv = await base44.agents.createConversation({
-        agent_name: 'study_scheduler',
-        metadata: { name: 'Study Schedule' },
-      });
-      setConversation(conv);
+  const generateSchedule = async () => {
+    setGenerating(true);
+    setSchedule(null);
 
-      const unsubscribe = base44.agents.subscribeToConversation(conv.id, (data) => {
-        setMessages(data.messages || []);
-      });
+    const upcoming = assignments
+      .filter(a => a.due_date && isFuture(new Date(a.due_date)) && a.status !== 'submitted' && a.status !== 'graded')
+      .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
-      setInitializing(false);
-      return unsubscribe;
-    } catch (err) {
-      console.error(err);
-      setInitializing(false);
-    }
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(weekStart, i);
+      return { name: DAYS[d.getDay()], date: format(d, 'EEE MMM d') };
+    }).filter(d => !skipWeekends || (d.name !== 'Saturday' && d.name !== 'Sunday'));
+
+    const assignmentList = upcoming.slice(0, 20).map(a => {
+      const course = courses.find(c => c.id === a.course_id);
+      const days = differenceInDays(new Date(a.due_date), weekStart);
+      return `- "${a.title}" [${course?.name || 'Unknown'}] — Due: ${format(new Date(a.due_date), 'EEE MMM d')} (${days > 0 ? `in ${days} days` : 'past/this week'}) — Type: ${a.type || 'unknown'} — Status: ${a.status}${a.description ? ` — Notes: ${a.description}` : ''}`;
+    }).join('\n');
+
+    const docList = documents.slice(0, 15).map(d => {
+      const course = courses.find(c => c.id === d.course_id);
+      return `- "${d.title}" [${course?.name || 'Unknown'}] (${d.type})`;
+    }).join('\n');
+
+    const prompt = `You are an expert academic coach. Create a detailed, realistic daily study schedule for the week of ${weekLabel}.
+
+STUDENT CONSTRAINTS:
+- Available study hours per day: ${hoursPerDay} hours
+- Skip weekends: ${skipWeekends ? 'Yes' : 'No'}
+- Week days to plan: ${weekDays.map(d => d.date).join(', ')}
+
+UPCOMING ASSIGNMENTS (prioritize by urgency):
+${assignmentList || 'No upcoming assignments found.'}
+
+AVAILABLE STUDY MATERIALS:
+${docList || 'No documents uploaded yet.'}
+
+INSTRUCTIONS:
+1. Distribute study sessions logically across the week, giving more time to urgent/high-weight assignments
+2. Include specific tasks for each day (e.g. "Read Chapter 3", "Work on intro paragraph", "Review notes for quiz")
+3. Reference actual assignment names and courses
+4. Keep each day within the ${hoursPerDay}-hour limit
+5. Add a brief review buffer before any deadlines that fall this week
+6. Format EXACTLY like this — use this structure for every day:
+
+## Monday, Jun 16
+**Total: 2.5 hrs**
+- 🎯 [Course Name] Task description here (1 hr)
+- 📖 [Course Name] Another task (1.5 hrs)
+
+## Tuesday, Jun 17
+**Total: 3 hrs**
+- etc.
+
+7. End with a short "## Weekly Focus" section listing the top 3 priorities for the week.`;
+
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt,
+      model: 'claude_sonnet_4_6',
+    });
+
+    setSchedule(typeof result === 'string' ? result : result?.response || '');
+    setGenerating(false);
   };
 
-  const send = async (text) => {
-    const msg = (text || input).trim();
-    if (!msg || loading) return;
-    setInput('');
-    setLoading(true);
-    try {
-      await base44.agents.addMessage(conversation, { role: 'user', content: msg });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      send();
-    }
-  };
-
-  if (initializing) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  const hasMessages = messages.length > 0;
+  const parsedDays = schedule ? parseScheduleIntoDays(schedule, weekStart) : [];
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="max-w-5xl mx-auto px-4 py-6 pb-20">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-border flex-shrink-0">
-        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
           <CalendarDays className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="font-semibold text-foreground">Study Scheduler</h1>
-          <p className="text-xs text-muted-foreground">AI-powered personalized study plans</p>
+          <h1 className="font-bold text-xl text-foreground">Weekly Study Planner</h1>
+          <p className="text-sm text-muted-foreground">AI-generated schedule based on your syllabus & deadlines</p>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-        {!hasMessages && (
-          <div className="flex flex-col items-center justify-center h-full gap-6 text-center max-w-md mx-auto">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground mb-2">Build Your Study Schedule</h2>
-              <p className="text-muted-foreground text-sm">
-                I'll analyze your courses, assignments, and documents to create a personalized study plan.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-2 w-full">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="text-left px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-sm text-foreground"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+      {/* Controls */}
+      <div className="bg-card border border-border rounded-2xl p-5 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          {/* Week nav */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(v => v - 1)}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium text-foreground min-w-[160px] text-center">{weekLabel}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(v => v + 1)}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            {weekOffset !== 0 && (
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setWeekOffset(0)}>Today's week</Button>
+            )}
           </div>
-        )}
 
-        {messages.map((msg, i) => {
-          const isUser = msg.role === 'user';
-          return (
-            <div key={i} className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
-              {!isUser && (
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <CalendarDays className="w-4 h-4 text-primary" />
-                </div>
-              )}
-              <div className={cn(
-                'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
-                isUser
-                  ? 'bg-primary text-primary-foreground rounded-br-sm'
-                  : 'bg-card border border-border rounded-bl-sm text-foreground'
-              )}>
-                {isUser ? (
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                ) : (() => {
-                  const hasSchedule = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(msg.content);
-                  return hasSchedule ? (
-                    <>
-                      <ScheduleCalendar markdown={msg.content} />
-                      <details className="mt-3">
-                        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Show full text</summary>
-                        <ReactMarkdown className="prose prose-sm max-w-none mt-2 prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
-                          {msg.content}
-                        </ReactMarkdown>
-                      </details>
-                    </>
-                  ) : (
-                    <ReactMarkdown
-                      className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-table:text-foreground prose-code:text-foreground"
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
-                  );
-                })()}
-              </div>
+          {/* Options */}
+          <div className="flex items-center gap-4 flex-wrap sm:ml-auto">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Hours/day:</span>
+              <select
+                value={hoursPerDay}
+                onChange={e => setHoursPerDay(Number(e.target.value))}
+                className="text-sm bg-background border border-border rounded-md px-2 py-1 text-foreground"
+              >
+                {[1, 1.5, 2, 2.5, 3, 4, 5, 6].map(h => <option key={h} value={h}>{h}h</option>)}
+              </select>
             </div>
-          );
-        })}
-
-        {loading && (
-          <div className="flex gap-3 justify-start">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-              <CalendarDays className="w-4 h-4 text-primary" />
-            </div>
-            <div className="bg-card border border-border rounded-2xl rounded-bl-sm px-4 py-3">
-              <div className="flex gap-1 items-center h-4">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={skipWeekends}
+                onChange={e => setSkipWeekends(e.target.checked)}
+                className="rounded"
+              />
+              Skip weekends
+            </label>
           </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
 
-      {/* Input */}
-      <div className="flex-shrink-0 px-4 pb-4 pt-2 border-t border-border">
-        <div className="flex items-end gap-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask for a study schedule or adjustments…"
-            rows={1}
-            className="flex-1 bg-transparent text-sm resize-none outline-none text-foreground placeholder:text-muted-foreground max-h-40"
-            style={{ height: 'auto', minHeight: '24px' }}
-            onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
-          />
-          <Button
-            size="icon"
-            onClick={() => send()}
-            disabled={!input.trim() || loading}
-            className="flex-shrink-0 h-8 w-8 rounded-lg"
-          >
-            <Send className="w-3.5 h-3.5" />
+          <Button onClick={generateSchedule} disabled={generating} className="sm:ml-2">
+            {generating
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating…</>
+              : schedule
+                ? <><RefreshCw className="w-4 h-4 mr-2" />Regenerate</>
+                : <><Sparkles className="w-4 h-4 mr-2" />Generate Schedule</>
+            }
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">Press Enter to send · Shift+Enter for new line</p>
       </div>
+
+      {/* Empty state */}
+      {!schedule && !generating && (
+        <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Sparkles className="w-8 h-8 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-1">Ready to plan your week?</h2>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Set your available hours above, then click Generate Schedule to get a personalized day-by-day plan based on your upcoming deadlines.
+            </p>
+          </div>
+          <div className="mt-2 text-sm text-muted-foreground">
+            {assignments.filter(a => a.due_date && isFuture(new Date(a.due_date))).length} upcoming assignments · {courses.length} courses · {documents.length} documents loaded
+          </div>
+        </div>
+      )}
+
+      {/* Loading */}
+      {generating && (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Analyzing your assignments and building your schedule…</p>
+        </div>
+      )}
+
+      {/* Schedule grid */}
+      {schedule && !generating && (
+        <>
+          <WeeklyGrid days={parsedDays} weekStart={weekStart} />
+          <details className="mt-4 bg-card border border-border rounded-xl p-4">
+            <summary className="text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground">Show full schedule text</summary>
+            <div className="mt-4 prose prose-sm max-w-none dark:prose-invert">
+              <ReactMarkdown>{schedule}</ReactMarkdown>
+            </div>
+          </details>
+        </>
+      )}
     </div>
   );
+}
+
+function parseScheduleIntoDays(markdown, weekStart) {
+  const dayMap = {};
+  const lines = markdown.split('\n');
+  let currentDay = null;
+
+  lines.forEach(line => {
+    const dayMatch = line.match(/^##\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
+    if (dayMatch) {
+      currentDay = dayMatch[1].charAt(0).toUpperCase() + dayMatch[1].slice(1).toLowerCase();
+      dayMap[currentDay] = { name: currentDay, tasks: [], total: '' };
+      return;
+    }
+    if (!currentDay) return;
+    const totalMatch = line.match(/\*\*Total[:\s]+([\d.]+\s*hrs?)\*\*/i);
+    if (totalMatch) { dayMap[currentDay].total = totalMatch[1]; return; }
+    const taskMatch = line.match(/^[-*]\s+(.+)/);
+    if (taskMatch) dayMap[currentDay].tasks.push(taskMatch[1]);
+  });
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(weekStart, i);
+    const name = DAYS[d.getDay()];
+    return dayMap[name] || { name, tasks: [], total: '' };
+  });
 }
