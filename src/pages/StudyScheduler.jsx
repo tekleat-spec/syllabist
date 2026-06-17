@@ -43,9 +43,16 @@ export default function StudyScheduler() {
       return `- "${a.title}" [${course?.name || 'Unknown'}] — Due: ${format(new Date(a.due_date), 'EEE MMM d')} (${days > 0 ? `in ${days} days` : 'past/this week'}) — Type: ${a.type || 'unknown'} — Status: ${a.status}${a.description ? ` — Notes: ${a.description}` : ''}`;
     }).join('\n');
 
-    const docList = documents.slice(0, 15).map(d => {
+    // Pull syllabus content summaries for richer context
+    const syllabi = documents.filter(d => d.type === 'syllabus' && d.content_summary);
+    const syllabusContext = syllabi.map(d => {
       const course = courses.find(c => c.id === d.course_id);
-      return `- "${d.title}" [${course?.name || 'Unknown'}] (${d.type})`;
+      return `### Syllabus: ${course?.name || d.title}\n${d.content_summary}`;
+    }).join('\n\n');
+
+    const otherDocs = documents.filter(d => d.type !== 'syllabus').slice(0, 12).map(d => {
+      const course = courses.find(c => c.id === d.course_id);
+      return `- "${d.title}" [${course?.name || 'Unknown'}] (${d.type})${d.content_summary ? ` — ${d.content_summary.slice(0, 120)}` : ''}`;
     }).join('\n');
 
     const prompt = `You are an expert academic coach. Create a detailed, realistic daily study schedule for the week of ${weekLabel}.
@@ -58,16 +65,20 @@ STUDENT CONSTRAINTS:
 UPCOMING ASSIGNMENTS (prioritize by urgency):
 ${assignmentList || 'No upcoming assignments found.'}
 
-AVAILABLE STUDY MATERIALS:
-${docList || 'No documents uploaded yet.'}
+SYLLABUS CONTENT (use deadlines, topics, and course structure from these):
+${syllabusContext || 'No syllabus content available. Use assignment data above.'}
+
+OTHER STUDY MATERIALS:
+${otherDocs || 'No other documents uploaded yet.'}
 
 INSTRUCTIONS:
-1. Distribute study sessions logically across the week, giving more time to urgent/high-weight assignments
-2. Include specific tasks for each day (e.g. "Read Chapter 3", "Work on intro paragraph", "Review notes for quiz")
-3. Reference actual assignment names and courses
-4. Keep each day within the ${hoursPerDay}-hour limit
-5. Add a brief review buffer before any deadlines that fall this week
-6. Format EXACTLY like this — use this structure for every day:
+1. Use the syllabus content to identify key topics, exam dates, and reading schedules — not just the assignment list
+2. Distribute study sessions logically, giving more time to urgent/high-weight assignments
+3. Include specific tasks for each day (e.g. "Read Chapter 3 for PSYC101", "Draft intro paragraph for essay", "Review lecture notes before Thursday exam")
+4. Reference actual assignment names and courses
+5. Keep each day within the ${hoursPerDay}-hour limit
+6. Add a review buffer before any deadlines that fall this week
+7. Format EXACTLY like this — use this structure for every day:
 
 ## Monday, Jun 16
 **Total: 2.5 hrs**
@@ -78,7 +89,7 @@ INSTRUCTIONS:
 **Total: 3 hrs**
 - etc.
 
-7. End with a short "## Weekly Focus" section listing the top 3 priorities for the week.`;
+8. End with a short "## Weekly Focus" section listing the top 3 priorities for the week.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt,
@@ -169,7 +180,7 @@ INSTRUCTIONS:
             </p>
           </div>
           <div className="mt-2 text-sm text-muted-foreground">
-            {assignments.filter(a => a.due_date && isFuture(new Date(a.due_date))).length} upcoming assignments · {courses.length} courses · {documents.length} documents loaded
+            {assignments.filter(a => a.due_date && isFuture(new Date(a.due_date))).length} upcoming assignments · {courses.length} courses · {documents.filter(d => d.type === 'syllabus').length} syllabi · {documents.length} documents loaded
           </div>
         </div>
       )}
