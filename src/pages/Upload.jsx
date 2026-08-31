@@ -12,6 +12,21 @@ import PageHeader from '@/components/shared/PageHeader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
+const isWordFile = (fileName) => /\.(docx|doc)$/i.test(fileName || '');
+
+async function extractFromFile(fileUrl, schema, fileName) {
+  if (isWordFile(fileName)) {
+    // ExtractDataFromUploadedFile doesn't support Word docs — use InvokeLLM with file_urls
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: 'Extract all structured data from the attached document and return it as JSON matching the provided schema. Use only information explicitly present in the document.',
+      file_urls: [fileUrl],
+      response_json_schema: schema,
+    });
+    return { status: 'success', output: result };
+  }
+  return base44.integrations.Core.ExtractDataFromUploadedFile({ file_url: fileUrl, json_schema: schema });
+}
+
 export default function Upload() {
   const queryClient = useQueryClient();
   const initialTab = new URLSearchParams(window.location.search).get('tab') || 'syllabus';
@@ -47,13 +62,13 @@ export default function Upload() {
     const docType = activeTab === 'syllabus' ? 'syllabus' : activeTab === 'announcement' ? 'announcement' : 'notes';
 
     if (activeTab === 'syllabus') {
-      await processSyllabus(file_url, targetCourseId, docType);
+      await processSyllabus(file_url, targetCourseId, docType, file?.name);
     } else if (activeTab === 'announcement') {
-      await processAnnouncement(file_url, targetCourseId, docType);
+      await processAnnouncement(file_url, targetCourseId, docType, file?.name);
     } else if (activeTab === 'gradebook') {
-      await processGradebook(file_url, targetCourseId);
+      await processGradebook(file_url, targetCourseId, file?.name);
     } else {
-      await processMaterial(file_url, targetCourseId);
+      await processMaterial(file_url, targetCourseId, file?.name);
     }
 
     setProcessing(false);
@@ -62,48 +77,45 @@ export default function Upload() {
     setTimeout(() => setDone(false), 3000);
   };
 
-  const processSyllabus = async (fileUrl, targetCourseId, docType) => {
+  const processSyllabus = async (fileUrl, targetCourseId, docType, fileName) => {
     // Extract structured data from syllabus
-    const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
-      file_url: fileUrl,
-      json_schema: {
-        type: 'object',
-        properties: {
-          course_name: { type: 'string' },
-          professor: { type: 'string' },
-          course_code: { type: 'string' },
-          semester: { type: 'string' },
-          start_date: { type: 'string', description: 'Course start date as ISO string if available' },
-          end_date: { type: 'string', description: 'Course end date as ISO string if available' },
-          summary: { type: 'string', description: 'Brief summary of the course' },
-          assignments: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                type: { type: 'string', enum: ['homework', 'exam', 'quiz', 'project', 'paper', 'presentation', 'lab', 'reading', 'other'] },
-                due_date: { type: 'string', description: 'ISO date string if available' },
-                weight: { type: 'number', description: 'Percentage weight of final grade' },
-                description: { type: 'string' },
-              }
+    const extracted = await extractFromFile(fileUrl, {
+      type: 'object',
+      properties: {
+        course_name: { type: 'string' },
+        professor: { type: 'string' },
+        course_code: { type: 'string' },
+        semester: { type: 'string' },
+        start_date: { type: 'string', description: 'Course start date as ISO string if available' },
+        end_date: { type: 'string', description: 'Course end date as ISO string if available' },
+        summary: { type: 'string', description: 'Brief summary of the course' },
+        assignments: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              type: { type: 'string', enum: ['homework', 'exam', 'quiz', 'project', 'paper', 'presentation', 'lab', 'reading', 'other'] },
+              due_date: { type: 'string', description: 'ISO date string if available' },
+              weight: { type: 'number', description: 'Percentage weight of final grade' },
+              description: { type: 'string' },
             }
-          },
-          important_dates: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                date: { type: 'string', description: 'ISO date string' },
-                type: { type: 'string', enum: ['deadline', 'exam', 'class', 'office_hours', 'other'] },
-                description: { type: 'string' },
-              }
+          }
+        },
+        important_dates: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              date: { type: 'string', description: 'ISO date string' },
+              type: { type: 'string', enum: ['deadline', 'exam', 'class', 'office_hours', 'other'] },
+              description: { type: 'string' },
             }
           }
         }
       }
-    });
+    }, fileName);
 
     if (extracted.status === 'success' && extracted.output) {
       const data = extracted.output;
@@ -165,41 +177,38 @@ export default function Upload() {
     }
   };
 
-  const processAnnouncement = async (fileUrl, targetCourseId, docType) => {
-    const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
-      file_url: fileUrl,
-      json_schema: {
-        type: 'object',
-        properties: {
-          title: { type: 'string' },
-          summary: { type: 'string' },
-          new_deadlines: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                due_date: { type: 'string' },
-                type: { type: 'string', enum: ['homework', 'exam', 'quiz', 'project', 'paper', 'presentation', 'lab', 'reading', 'other'] },
-                description: { type: 'string' },
-              }
+  const processAnnouncement = async (fileUrl, targetCourseId, docType, fileName) => {
+    const extracted = await extractFromFile(fileUrl, {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        summary: { type: 'string' },
+        new_deadlines: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              due_date: { type: 'string' },
+              type: { type: 'string', enum: ['homework', 'exam', 'quiz', 'project', 'paper', 'presentation', 'lab', 'reading', 'other'] },
+              description: { type: 'string' },
             }
-          },
-          date_changes: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                new_date: { type: 'string' },
-                type: { type: 'string', enum: ['deadline', 'exam', 'class', 'other'] },
-                description: { type: 'string' },
-              }
+          }
+        },
+        date_changes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              new_date: { type: 'string' },
+              type: { type: 'string', enum: ['deadline', 'exam', 'class', 'other'] },
+              description: { type: 'string' },
             }
           }
         }
       }
-    });
+    }, fileName);
 
     if (extracted.status === 'success' && extracted.output) {
       const data = extracted.output;
@@ -245,19 +254,16 @@ export default function Upload() {
     }
   };
 
-  const processMaterial = async (fileUrl, targetCourseId) => {
-    const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
-      file_url: fileUrl,
-      json_schema: {
-        type: 'object',
-        properties: {
-          title: { type: 'string' },
-          summary: { type: 'string', description: 'Comprehensive summary of the material' },
-          key_topics: { type: 'array', items: { type: 'string' } },
-          document_type: { type: 'string', enum: ['slides', 'notes', 'pdf', 'other'] },
-        }
+  const processMaterial = async (fileUrl, targetCourseId, fileName) => {
+    const extracted = await extractFromFile(fileUrl, {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        summary: { type: 'string', description: 'Comprehensive summary of the material' },
+        key_topics: { type: 'array', items: { type: 'string' } },
+        document_type: { type: 'string', enum: ['slides', 'notes', 'pdf', 'other'] },
       }
-    });
+    }, fileName);
 
     if (extracted.status === 'success' && extracted.output) {
       const data = extracted.output;
@@ -276,32 +282,29 @@ export default function Upload() {
     }
   };
 
-  const processGradebook = async (fileUrl, targetCourseId) => {
-    const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
-      file_url: fileUrl,
-      json_schema: {
-        type: 'object',
-        properties: {
-          grades: {
-            type: 'array',
-            description: 'ALL items in the gradebook — both graded and ungraded/pending. Include every row.',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string', description: 'Assignment/exam/quiz name exactly as shown' },
-                type: { type: 'string', enum: ['homework', 'exam', 'quiz', 'project', 'paper', 'presentation', 'lab', 'reading', 'other'] },
-                grade: { type: 'number', description: 'Numeric percentage grade on 0-100 scale. Omit (do not include the field) if not yet graded, not submitted, or shown as dash/blank/N/A.' },
-                points_earned: { type: 'number', description: 'Points earned. Omit if not graded yet.' },
-                points_possible: { type: 'number', description: 'Maximum points possible. Include even for ungraded items if shown.' },
-                weight: { type: 'number', description: 'Weight as % of final grade if shown' },
-                due_date: { type: 'string', description: 'Due date as ISO string if visible' },
-              },
-              required: ['title']
-            }
+  const processGradebook = async (fileUrl, targetCourseId, fileName) => {
+    const extracted = await extractFromFile(fileUrl, {
+      type: 'object',
+      properties: {
+        grades: {
+          type: 'array',
+          description: 'ALL items in the gradebook — both graded and ungraded/pending. Include every row.',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Assignment/exam/quiz name exactly as shown' },
+              type: { type: 'string', enum: ['homework', 'exam', 'quiz', 'project', 'paper', 'presentation', 'lab', 'reading', 'other'] },
+              grade: { type: 'number', description: 'Numeric percentage grade on 0-100 scale. Omit (do not include the field) if not yet graded, not submitted, or shown as dash/blank/N/A.' },
+              points_earned: { type: 'number', description: 'Points earned. Omit if not graded yet.' },
+              points_possible: { type: 'number', description: 'Maximum points possible. Include even for ungraded items if shown.' },
+              weight: { type: 'number', description: 'Weight as % of final grade if shown' },
+              due_date: { type: 'string', description: 'Due date as ISO string if visible' },
+            },
+            required: ['title']
           }
         }
       }
-    });
+    }, fileName);
 
     if (extracted.status !== 'success' || !extracted.output?.grades?.length) {
       toast.error('Could not extract grade data from the file.');
@@ -455,7 +458,7 @@ export default function Upload() {
                   <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
                     <FileUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Drop your file here or click to browse</p>
-                    <p className="text-xs text-muted-foreground mt-1">PDF, DOC, PPTX, TXT, images</p>
+                    <p className="text-xs text-muted-foreground mt-1">PDF, Word, PPTX, TXT, images</p>
                   </motion.div>
                 )}
               </AnimatePresence>
