@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Loader2, Sparkles, RefreshCw, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { CalendarDays, Loader2, Sparkles, RefreshCw, ChevronLeft, ChevronRight, Clock, CheckCircle2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { format, addDays, startOfWeek, isFuture, differenceInDays, parseISO } from 'date-fns';
 import WeeklyGrid from '@/components/scheduler/WeeklyGrid';
@@ -15,6 +15,7 @@ export default function StudyScheduler() {
   const [generating, setGenerating] = useState(false);
   const [hoursPerDay, setHoursPerDay] = useState(3);
   const [skipWeekends, setSkipWeekends] = useState(false);
+  const [googleSynced, setGoogleSynced] = useState(false);
 
   const { data: courses = [] } = useQuery({ queryKey: ['courses'], queryFn: () => base44.entities.Course.list() });
   const { data: assignments = [] } = useQuery({ queryKey: ['assignments'], queryFn: () => base44.entities.Assignment.list() });
@@ -96,8 +97,36 @@ INSTRUCTIONS:
       model: 'claude_sonnet_4_6',
     });
 
-    setSchedule(typeof result === 'string' ? result : result?.response || '');
+    const scheduleText = typeof result === 'string' ? result : result?.response || '';
+    setSchedule(scheduleText);
     setGenerating(false);
+    setGoogleSynced(false);
+    // Best-effort push of study sessions to Google Calendar
+    try {
+      const days = parseScheduleIntoDays(scheduleText, weekStart);
+      const sessions = [];
+      for (let i = 0; i < days.length; i++) {
+        const day = days[i];
+        if (!day.tasks || day.tasks.length === 0) continue;
+        const date = addDays(weekStart, i);
+        const start = new Date(date);
+        start.setHours(16, 0, 0, 0);
+        const totalMatch = (day.total || '').match(/([\d.]+)\s*hrs?/i);
+        const durationHours = totalMatch ? parseFloat(totalMatch[1]) : 2;
+        sessions.push({
+          title: `Study Session — ${day.name}`,
+          start: start.toISOString(),
+          durationHours,
+          description: day.tasks.join('\n'),
+        });
+      }
+      if (sessions.length > 0) {
+        await base44.functions.invoke('sync-to-google-calendar', { mode: 'study', sessions });
+        setGoogleSynced(true);
+      }
+    } catch (e) {
+      // User may not have Google Calendar connected — skip silently
+    }
   };
 
   const parsedDays = schedule ? parseScheduleIntoDays(schedule, weekStart) : [];
@@ -196,6 +225,12 @@ INSTRUCTIONS:
       {/* Schedule grid */}
       {schedule && !generating && (
         <>
+          {googleSynced && (
+            <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 mb-4">
+              <CheckCircle2 className="w-4 h-4" />
+              Study sessions pushed to your Google Calendar
+            </div>
+          )}
           <WeeklyGrid days={parsedDays} weekStart={weekStart} />
           <details className="mt-4 bg-card border border-border rounded-xl p-4">
             <summary className="text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground">Show full schedule text</summary>

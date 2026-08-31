@@ -45,6 +45,10 @@
       "type": "boolean",
       "default": false,
       "description": "Whether alert has been sent"
+    },
+    "google_event_id": {
+      "type": "string",
+      "description": "Google Calendar event ID for synced events (enables idempotent updates/deletes)"
     }
   },
   "required": [

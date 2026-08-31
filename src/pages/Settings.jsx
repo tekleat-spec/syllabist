@@ -9,6 +9,7 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
 import PageHeader from '@/components/shared/PageHeader';
+import GoogleCalendarCard from '@/components/settings/GoogleCalendarCard';
 
 export default function Settings() {
   const [deleting, setDeleting] = useState(false);
@@ -26,6 +27,8 @@ export default function Settings() {
       <PageHeader title="Settings" subtitle="Manage your account" />
 
       <div className="space-y-4">
+        <GoogleCalendarCard />
+
         {/* Logout */}
         <Card className="p-6 flex items-center justify-between">
           <div>
