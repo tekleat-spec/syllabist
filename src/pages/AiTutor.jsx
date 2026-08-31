@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Send, Sparkles, Loader2, Paperclip, X } from 'lucide-react';
+import { Send, Sparkles, Loader2, Paperclip, X, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, isFuture, differenceInDays } from 'date-fns';
 import TutorMessage from '@/components/tutor/TutorMessage';
+import ReminderWidget from '@/components/widgets/ReminderWidget';
 
 const WELCOME = {
   role: 'assistant',
@@ -76,6 +77,7 @@ export default function AiTutor() {
   const [loading, setLoading] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [showReminders, setShowReminders] = useState(true);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -207,16 +209,26 @@ Guidelines:
   const showSuggestions = messages.length === 1;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] bg-gradient-to-b from-amber-50 via-orange-50/30 to-background dark:from-amber-950/20 dark:via-background dark:to-background">
+    <div className="flex h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] bg-gradient-to-b from-amber-50 via-orange-50/30 to-background dark:from-amber-950/20 dark:via-background dark:to-background">
+      <div className="flex flex-col flex-1 min-w-0">
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-amber-100 dark:border-border/60 flex-shrink-0 bg-amber-50/80 dark:bg-card/60 backdrop-blur">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-orange-300/50">
-          <Sparkles className="w-5 h-5 text-white" />
+      <div className="flex items-center gap-3 justify-between px-6 py-5 border-b border-amber-100 dark:border-border/60 flex-shrink-0 bg-amber-50/80 dark:bg-card/60 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-orange-300/50">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="font-bold text-foreground text-lg">Syllabist ✨</h1>
+            <p className="text-xs text-muted-foreground">{courses.length} courses · {assignments.length} assignments · {documents.length} documents loaded</p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-bold text-foreground text-lg">Syllabist ✨</h1>
-          <p className="text-xs text-muted-foreground">{courses.length} courses · {assignments.length} assignments · {documents.length} documents loaded</p>
-        </div>
+        <button
+          onClick={() => setShowReminders(v => !v)}
+          className="hidden lg:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium transition-colors dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
+        >
+          <Bell className="w-3.5 h-3.5" />
+          {showReminders ? 'Hide' : 'Reminders'}
+        </button>
       </div>
 
       {/* Messages */}
@@ -313,6 +325,12 @@ Guidelines:
         </div>
         <p className="text-xs text-muted-foreground text-center mt-2">Press Enter to send · Shift+Enter for new line · 📎 attach files</p>
       </div>
+      </div>
+      {showReminders && (
+        <aside className="hidden lg:flex w-72 flex-shrink-0 border-l border-border bg-card/50 backdrop-blur flex-col">
+          <ReminderWidget assignments={assignments} courses={courses} />
+        </aside>
+      )}
     </div>
   );
 }
