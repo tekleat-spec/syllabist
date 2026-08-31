@@ -7,15 +7,15 @@ import AssignmentFolder from './AssignmentFolder';
 export default function CourseFolder({ course, assignments }) {
   const [open, setOpen] = useState(false);
   const [assignmentFolders, setAssignmentFolders] = useState(
-    assignments.map(a => a.title)
+    assignments.map(a => ({ name: a.title, dueDate: a.due_date }))
   );
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
 
   const addFolder = () => {
     if (!newName.trim()) return;
-    if (!assignmentFolders.includes(newName.trim())) {
-      setAssignmentFolders(prev => [...prev, newName.trim()]);
+    if (!assignmentFolders.some(f => f.name === newName.trim())) {
+      setAssignmentFolders(prev => [...prev, { name: newName.trim(), dueDate: null }]);
     }
     setNewName('');
     setAdding(false);
@@ -46,8 +46,8 @@ export default function CourseFolder({ course, assignments }) {
             <p className="text-sm text-muted-foreground text-center py-4">No assignment folders yet.</p>
           )}
 
-          {assignmentFolders.map(name => (
-            <AssignmentFolder key={name} courseId={course.id} assignmentName={name} />
+          {assignmentFolders.map(f => (
+            <AssignmentFolder key={f.name} courseId={course.id} assignmentName={f.name} dueDate={f.dueDate} />
           ))}
 
           {adding ? (

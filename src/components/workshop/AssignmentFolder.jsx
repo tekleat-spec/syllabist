@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-import { Plus, ChevronDown, ChevronRight, Maximize2, Minimize2, X } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Maximize2, Minimize2, X, Calendar } from 'lucide-react';
+import { format, isPast, differenceInCalendarDays } from 'date-fns';
 import AddMaterialDialog from './AddMaterialDialog';
 import WorkshopOutputPanel from './WorkshopOutputPanel';
 import MaterialInsightCard from './MaterialInsightCard';
 
-export default function AssignmentFolder({ courseId, assignmentName }) {
+export default function AssignmentFolder({ courseId, assignmentName, dueDate }) {
   const [open, setOpen] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [items, setItems] = useState([]);
@@ -88,6 +89,7 @@ export default function AssignmentFolder({ courseId, assignmentName }) {
           {/* Fullscreen header */}
           <div className="flex items-center gap-3 px-5 py-3 border-b border-border bg-muted/40 flex-shrink-0">
             <span className="font-semibold text-sm flex-1">{assignmentName}</span>
+            {dueDate && <DueBadge dueDate={dueDate} />}
             <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
               <Plus className="w-3.5 h-3.5 mr-1" /> Add
             </Button>
@@ -142,6 +144,7 @@ export default function AssignmentFolder({ courseId, assignmentName }) {
       >
         {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
         <span className="font-medium text-sm flex-1">{assignmentName}</span>
+        {dueDate && <DueBadge dueDate={dueDate} />}
         <Badge variant="outline" className="text-xs">{items.length > 0 ? `${items.length} files` : 'empty'}</Badge>
         {open && (
           <button
@@ -163,5 +166,22 @@ export default function AssignmentFolder({ courseId, assignmentName }) {
         onAdded={load}
       />
     </div>
+  );
+}
+
+function DueBadge({ dueDate }) {
+  const date = new Date(dueDate);
+  const past = isPast(date);
+  const days = differenceInCalendarDays(date, new Date());
+  const colorClass = past
+    ? 'text-destructive border-destructive/40 bg-destructive/5'
+    : days <= 3
+      ? 'text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-800'
+      : 'text-muted-foreground';
+  return (
+    <Badge variant="outline" className={`text-xs ${colorClass}`}>
+      <Calendar className="w-3 h-3 mr-1" />
+      {past ? 'Overdue · ' : 'Due '}{format(date, 'MMM d')}
+    </Badge>
   );
 }
