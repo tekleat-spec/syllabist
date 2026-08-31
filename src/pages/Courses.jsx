@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Plus, Trash2, Edit2, MoreVertical } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Edit2, MoreVertical, CheckCircle2, RotateCcw, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +50,87 @@ export default function Courses() {
     return (graded.reduce((sum, a) => sum + a.grade, 0) / graded.length).toFixed(1);
   };
 
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ id, status }) => base44.entities.Course.update(id, { status }),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['courses'] });
+      const prev = queryClient.getQueryData(['courses']);
+      queryClient.setQueryData(['courses'], old => (old || []).map(c => c.id === id ? { ...c, status } : c));
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => queryClient.setQueryData(['courses'], ctx.prev),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['courses'] }),
+  });
+
+  const activeCourses = courses.filter(c => c.status !== 'completed');
+  const pastCourses = courses.filter(c => c.status === 'completed');
+
+  const renderCard = (course, i) => {
+    const colorClass = courseColors[i % courseColors.length];
+    const avg = getCourseAvg(course.id);
+    const isPast = course.status === 'completed';
+    return (
+      <motion.div
+        key={course.id}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: i * 0.05 }}
+      >
+        <Card className={`p-5 hover:shadow-md transition-shadow relative group ${isPast ? 'opacity-70' : ''}`}>
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${colorClass}`} />
+              {isPast && (
+                <Badge variant="outline" className="text-xs text-muted-foreground">
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Completed
+                </Badge>
+              )}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => { setEditingCourse(course); setDialogOpen(true); }}>
+                  <Edit2 className="w-3.5 h-3.5 mr-2" /> Edit
+                </DropdownMenuItem>
+                {isPast ? (
+                  <DropdownMenuItem onClick={() => toggleStatusMutation.mutate({ id: course.id, status: 'active' })}>
+                    <RotateCcw className="w-3.5 h-3.5 mr-2" /> Mark as Active
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => toggleStatusMutation.mutate({ id: course.id, status: 'completed' })}>
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-2" /> Mark as Completed
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(course.id)}>
+                  <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <h3 className="font-semibold text-foreground mb-1">{course.name}</h3>
+          {course.code && <p className="text-xs text-muted-foreground font-mono mb-2">{course.code}</p>}
+          {course.professor && <p className="text-sm text-muted-foreground mb-3">{course.professor}</p>}
+
+          <div className="flex items-center gap-2 mt-auto">
+            <Badge variant="secondary" className="text-xs">
+              {getAssignmentCount(course.id)} assignments
+            </Badge>
+            {avg && (
+              <Badge variant="outline" className="text-xs">
+                Avg: {avg}%
+              </Badge>
+            )}
+          </div>
+        </Card>
+      </motion.div>
+    );
+  };
+
   return (
     <div>
       <PageHeader
@@ -74,56 +155,26 @@ export default function Courses() {
           }
         />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {courses.map((course, i) => {
-            const colorClass = courseColors[i % courseColors.length];
-            const avg = getCourseAvg(course.id);
-            return (
-              <motion.div
-                key={course.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-              >
-                <Card className="p-5 hover:shadow-md transition-shadow relative group">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className={`w-3 h-3 rounded-full ${colorClass}`} />
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setEditingCourse(course); setDialogOpen(true); }}>
-                          <Edit2 className="w-3.5 h-3.5 mr-2" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(course.id)}>
-                          <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <h3 className="font-semibold text-foreground mb-1">{course.name}</h3>
-                  {course.code && <p className="text-xs text-muted-foreground font-mono mb-2">{course.code}</p>}
-                  {course.professor && <p className="text-sm text-muted-foreground mb-3">{course.professor}</p>}
-
-                  <div className="flex items-center gap-2 mt-auto">
-                    <Badge variant="secondary" className="text-xs">
-                      {getAssignmentCount(course.id)} assignments
-                    </Badge>
-                    {avg && (
-                      <Badge variant="outline" className="text-xs">
-                        Avg: {avg}%
-                      </Badge>
-                    )}
-                  </div>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
+        <>
+          {activeCourses.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-sm font-medium text-muted-foreground mb-3">Active Courses</h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeCourses.map((c, i) => renderCard(c, i))}
+              </div>
+            </div>
+          )}
+          {pastCourses.length > 0 && (
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+                <Archive className="w-4 h-4" /> Past Courses
+              </h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pastCourses.map((c, i) => renderCard(c, i))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <CourseDialog

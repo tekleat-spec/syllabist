@@ -29,6 +29,15 @@
     "notes": {
       "type": "string",
       "description": "Additional notes about the course"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed"
+      ],
+      "default": "active",
+      "description": "Whether the course is active or completed"
     }
   },
   "required": [
