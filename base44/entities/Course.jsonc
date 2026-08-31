@@ -30,6 +30,16 @@
       "type": "string",
       "description": "Additional notes about the course"
     },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Course start date (extracted from syllabus)"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Course end date (extracted from syllabus)"
+    },
     "status": {
       "type": "string",
       "enum": [

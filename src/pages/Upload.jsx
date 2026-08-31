@@ -73,6 +73,8 @@ export default function Upload() {
           professor: { type: 'string' },
           course_code: { type: 'string' },
           semester: { type: 'string' },
+          start_date: { type: 'string', description: 'Course start date as ISO string if available' },
+          end_date: { type: 'string', description: 'Course end date as ISO string if available' },
           summary: { type: 'string', description: 'Brief summary of the course' },
           assignments: {
             type: 'array',
@@ -112,6 +114,8 @@ export default function Upload() {
           ...(data.professor && { professor: data.professor }),
           ...(data.course_code && { code: data.course_code }),
           ...(data.semester && { semester: data.semester }),
+          ...(data.start_date && { start_date: data.start_date }),
+          ...(data.end_date && { end_date: data.end_date }),
           syllabus_url: fileUrl,
         });
       }

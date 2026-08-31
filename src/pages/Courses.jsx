@@ -10,6 +10,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import CourseDialog from '@/components/courses/CourseDialog';
 import { motion } from 'framer-motion';
+import { isPast as isPastDate } from 'date-fns';
 
 const courseColors = [
   'bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-purple-500', 
@@ -62,13 +63,14 @@ export default function Courses() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['courses'] }),
   });
 
-  const activeCourses = courses.filter(c => c.status !== 'completed');
-  const pastCourses = courses.filter(c => c.status === 'completed');
+  const isCoursePast = (c) => c.status === 'completed' || (c.end_date && isPastDate(new Date(c.end_date)));
+  const activeCourses = courses.filter(c => !isCoursePast(c));
+  const pastCourses = courses.filter(c => isCoursePast(c));
 
   const renderCard = (course, i) => {
     const colorClass = courseColors[i % courseColors.length];
     const avg = getCourseAvg(course.id);
-    const isPast = course.status === 'completed';
+    const isPast = course.status === 'completed' || (course.end_date && isPastDate(new Date(course.end_date)));
     return (
       <motion.div
         key={course.id}
