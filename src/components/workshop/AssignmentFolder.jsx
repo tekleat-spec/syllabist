@@ -171,6 +171,7 @@ export default function AssignmentFolder({ courseId, assignmentName, dueDate }) 
 
 function DueBadge({ dueDate }) {
   const date = new Date(dueDate);
+  if (isNaN(date.getTime())) return null;
   const past = isPast(date);
   const days = differenceInCalendarDays(date, new Date());
   const colorClass = past
