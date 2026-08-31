@@ -9,15 +9,18 @@ import PageHeader from '@/components/shared/PageHeader';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, startOfWeek, endOfWeek } from 'date-fns';
 import { motion } from 'framer-motion';
 
-const eventTypeColors = {
-  deadline: 'bg-destructive/80',
-  exam: 'bg-amber-500',
-  class: 'bg-primary',
-  study_session: 'bg-emerald-500',
-  office_hours: 'bg-cyan-500',
-  reminder: 'bg-purple-500',
-  other: 'bg-muted-foreground',
-};
+const coursePalette = [
+  'bg-violet-500',
+  'bg-blue-500',
+  'bg-emerald-500',
+  'bg-amber-500',
+  'bg-rose-500',
+  'bg-cyan-500',
+  'bg-fuchsia-500',
+  'bg-orange-500',
+  'bg-teal-500',
+  'bg-indigo-500',
+];
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -38,6 +41,14 @@ export default function CalendarPage() {
     queryKey: ['courses'],
     queryFn: () => base44.entities.Course.list(),
   });
+
+  const courseColorMap = useMemo(() => {
+    const map = {};
+    courses.forEach((c, i) => { map[c.id] = coursePalette[i % coursePalette.length]; });
+    return map;
+  }, [courses]);
+
+  const getCourseColor = (courseId) => courseColorMap[courseId] || 'bg-muted-foreground';
 
   const allEvents = useMemo(() => assignments
     .filter(a => a.due_date)
@@ -129,7 +140,7 @@ export default function CalendarPage() {
                       const done = e.status === 'submitted' || e.status === 'graded';
                       return (
                         <div key={e.id} className="flex items-center gap-1">
-                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${done ? 'bg-emerald-500' : (eventTypeColors[e.event_type] || eventTypeColors.other)}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${done ? 'bg-emerald-500' : getCourseColor(e.course_id)}`} />
                           <span className={`text-[10px] truncate leading-tight ${done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{e.title}</span>
                         </div>
                       );
@@ -174,7 +185,7 @@ export default function CalendarPage() {
                           : <Circle className="w-4 h-4" />}
                       </button>
                     ) : (
-                      <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${eventTypeColors[e.event_type] || eventTypeColors.other}`} />
+                      <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${getCourseColor(e.course_id)}`} />
                     )}
                     <div className="flex-1 min-w-0">
                       <span className={`text-sm font-medium ${done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
@@ -197,6 +208,20 @@ export default function CalendarPage() {
               );
             })}
           </div>
+
+          {courses.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Classes</p>
+              <div className="space-y-1.5">
+                {courses.map(c => (
+                  <div key={c.id} className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getCourseColor(c.id)}`} />
+                    <span className="text-xs text-foreground truncate">{c.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       </div>
     </div>
