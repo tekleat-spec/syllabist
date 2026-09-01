@@ -29,8 +29,10 @@ export default function StudyScheduler() {
     setGenerating(true);
     setSchedule(null);
 
+    const activeCourseIds = new Set(courses.filter(c => c.status !== 'completed').map(c => c.id));
+
     const upcoming = assignments
-      .filter(a => a.due_date && isFuture(new Date(a.due_date)) && a.status !== 'submitted' && a.status !== 'graded')
+      .filter(a => a.due_date && isFuture(new Date(a.due_date)) && a.status !== 'submitted' && a.status !== 'graded' && activeCourseIds.has(a.course_id))
       .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
     const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -44,14 +46,14 @@ export default function StudyScheduler() {
       return `- "${a.title}" [${course?.name || 'Unknown'}] — Due: ${format(new Date(a.due_date), 'EEE MMM d')} (${days > 0 ? `in ${days} days` : 'past/this week'}) — Type: ${a.type || 'unknown'} — Status: ${a.status}${a.description ? ` — Notes: ${a.description}` : ''}`;
     }).join('\n');
 
-    // Pull syllabus content summaries for richer context
-    const syllabi = documents.filter(d => d.type === 'syllabus' && d.content_summary);
+    // Pull syllabus content summaries for richer context (active courses only)
+    const syllabi = documents.filter(d => d.type === 'syllabus' && d.content_summary && activeCourseIds.has(d.course_id));
     const syllabusContext = syllabi.map(d => {
       const course = courses.find(c => c.id === d.course_id);
       return `### Syllabus: ${course?.name || d.title}\n${d.content_summary}`;
     }).join('\n\n');
 
-    const otherDocs = documents.filter(d => d.type !== 'syllabus').slice(0, 12).map(d => {
+    const otherDocs = documents.filter(d => d.type !== 'syllabus' && activeCourseIds.has(d.course_id)).slice(0, 12).map(d => {
       const course = courses.find(c => c.id === d.course_id);
       return `- "${d.title}" [${course?.name || 'Unknown'}] (${d.type})${d.content_summary ? ` — ${d.content_summary.slice(0, 120)}` : ''}`;
     }).join('\n');
