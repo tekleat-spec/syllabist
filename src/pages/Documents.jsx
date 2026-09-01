@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import usePullToRefresh from '@/hooks/usePullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Trash2, Download, Sparkles, Eye, MoreVertical, Loader2, CheckSquare, Square, BookOpen, AlignLeft, X } from 'lucide-react';
+import { FileText, Sparkles, Loader2, CheckSquare, BookOpen, AlignLeft, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
+import DocumentCard from '@/components/documents/DocumentCard';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -27,6 +28,7 @@ export default function Documents() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [collapsed, setCollapsed] = useState({});
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents'],
@@ -109,10 +111,15 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
     setBulkGenerating(false);
   };
 
-  const typeIcons = {
-    syllabus: '📋', slides: '📊', notes: '📝', pdf: '📄', study_guide: '📚',
-    paper_draft: '✍️', announcement: '📢', other: '📎',
-  };
+  const courseGroups = useMemo(() => {
+    const groups = {};
+    filtered.forEach(d => {
+      const key = d.course_id || 'unassigned';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(d);
+    });
+    return groups;
+  }, [filtered]);
 
   return (
     <div
@@ -176,95 +183,40 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
           description="Upload your course materials — syllabi, slides, notes, PDFs — and we'll help you create study guides, summaries, and more."
         />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((doc, i) => {
-            const course = courses.find(c => c.id === doc.course_id);
+        <div className="space-y-5">
+          {Object.entries(courseGroups).map(([key, docs]) => {
+            const course = key === 'unassigned' ? null : courses.find(c => c.id === key);
+            const isCollapsed = collapsed[key];
             return (
-              <motion.div
-                key={doc.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-              >
-                <Card
-                  className={`p-5 hover:shadow-md transition-shadow group relative cursor-pointer ${selectionMode && selectedIds.includes(doc.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}
-                  onClick={selectionMode ? () => toggleSelect(doc.id) : undefined}
+              <div key={key}>
+                <button
+                  onClick={() => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))}
+                  className="flex items-center gap-2 w-full mb-3"
                 >
-                  {selectionMode && (
-                    <div className="absolute top-3 left-3 z-10">
-                      {selectedIds.includes(doc.id)
-                        ? <CheckSquare className="w-5 h-5 text-primary" />
-                        : <Square className="w-5 h-5 text-muted-foreground" />}
-                    </div>
-                  )}
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-2xl">{typeIcons[doc.type] || typeIcons.other}</span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {doc.file_url && (
-                          <DropdownMenuItem onClick={() => window.open(doc.file_url, '_blank')}>
-                            <Download className="w-3.5 h-3.5 mr-2" /> Download
-                          </DropdownMenuItem>
-                        )}
-                        {doc.generated_content && (
-                          <DropdownMenuItem onClick={() => setSelectedDoc(doc)}>
-                            <Eye className="w-3.5 h-3.5 mr-2" /> View Generated
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)}>
-                          <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <h3 className="font-semibold text-sm text-foreground mb-1 line-clamp-2">{doc.title}</h3>
-                  {course && <p className="text-xs text-muted-foreground mb-2">{course.name}</p>}
-                  {doc.content_summary && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{doc.content_summary}</p>
-                  )}
-
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <Badge variant="secondary" className="text-[10px] capitalize">{doc.type?.replace(/_/g, ' ')}</Badge>
-                    {doc.generation_type && doc.generation_type !== 'none' && (
-                      <Badge className="text-[10px] capitalize bg-primary/10 text-primary border-0">
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        {doc.generation_type.replace(/_/g, ' ')}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* AI Generate buttons */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {['study_guide', 'summary', 'flashcards', 'outline'].map(type => (
-                      <Button
-                        key={type}
-                        variant="outline"
-                        size="sm"
-                        className="text-[10px] h-7 px-2"
-                        disabled={generating === doc.id}
-                        onClick={() => handleGenerate(doc, type)}
-                      >
-                        {generating === doc.id ? (
-                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-3 h-3 mr-1" />
-                        )}
-                        {type.replace(/_/g, ' ')}
-                      </Button>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                  <span className="font-semibold text-foreground">{course?.name || 'Unassigned'}</span>
+                  <Badge variant="secondary" className="text-[10px]">{docs.length}</Badge>
+                </button>
+                {!isCollapsed && (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {docs.map((doc, i) => (
+                      <DocumentCard
+                        key={doc.id}
+                        doc={doc}
+                        course={course}
+                        index={i}
+                        selectionMode={selectionMode}
+                        selected={selectedIds.includes(doc.id)}
+                        onToggleSelect={toggleSelect}
+                        generating={generating}
+                        onDelete={deleteMutation.mutate}
+                        onGenerate={handleGenerate}
+                        onViewGenerated={setSelectedDoc}
+                      />
                     ))}
                   </div>
-
-                  <p className="text-[10px] text-muted-foreground mt-3">
-                    {format(new Date(doc.created_date), 'MMM d, yyyy')}
-                  </p>
-                </Card>
-              </motion.div>
+                )}
+              </div>
             );
           })}
         </div>
