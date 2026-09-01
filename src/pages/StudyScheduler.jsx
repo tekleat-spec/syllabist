@@ -232,10 +232,17 @@ INSTRUCTIONS:
             </div>
           )}
           <WeeklyGrid days={parsedDays} weekStart={weekStart} />
-          <details className="mt-4 bg-card border border-border rounded-xl p-4">
+          <details className="mt-4 bg-card border border-border rounded-xl p-5">
             <summary className="text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground">Show full schedule text</summary>
-            <div className="mt-4 prose prose-sm max-w-none dark:prose-invert">
-              <ReactMarkdown>{schedule}</ReactMarkdown>
+            <div className="mt-6 prose prose-sm max-w-none dark:prose-invert leading-relaxed [&_h2]:mt-8 [&_h2:first-child]:mt-2 [&_h2]:mb-3 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-foreground [&_ul]:my-3 [&_ul]:space-y-2 [&_li]:leading-7 [&_p]:my-3 [&_strong]:text-foreground">
+              <ReactMarkdown
+                components={{
+                  h2: ({ node, ...props }) => <h2 className="border-b border-border pb-1.5" {...props} />,
+                  li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+                }}
+              >
+                {schedule}
+              </ReactMarkdown>
             </div>
           </details>
         </>
