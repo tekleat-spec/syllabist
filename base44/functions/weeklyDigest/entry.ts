@@ -4,14 +4,13 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Get all data
     const [assignments, courses, documents] = await Promise.all([
       base44.asServiceRole.entities.Assignment.list('-due_date'),
       base44.asServiceRole.entities.Course.list(),
       base44.asServiceRole.entities.Document.list('-created_date'),
     ]);
 
-    // Find assignments due this week (Mon–Sun)
+    // Sunday morning: compute the upcoming week (Mon–Sun)
     const now = new Date();
     const monday = new Date(now);
     monday.setDate(now.getDate() - now.getDay() + 1);
@@ -20,48 +19,61 @@ Deno.serve(async (req) => {
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
 
-    const dueThisWeek = assignments.filter(a => {
+    const parseDate = (s: string) => new Date(s && s.includes('T') ? s : s + 'T12:00:00');
+
+    const courseMap = Object.fromEntries(courses.map((c: any) => [c.id, c]));
+
+    // Assignments due this week, grouped by course
+    const dueThisWeek = assignments.filter((a: any) => {
       if (!a.due_date) return false;
-      const d = new Date(a.due_date.includes('T') ? a.due_date : a.due_date + 'T12:00:00');
+      const d = parseDate(a.due_date);
       return d >= monday && d <= sunday;
     });
 
-    const courseMap = Object.fromEntries(courses.map(c => [c.id, c]));
+    const byCourse: Record<string, any[]> = {};
+    dueThisWeek.forEach((a: any) => {
+      const cname = courseMap[a.course_id]?.name || 'Other';
+      if (!byCourse[cname]) byCourse[cname] = [];
+      byCourse[cname].push(a);
+    });
 
-    // Get recent documents for context on what's being covered
-    const recentDocs = documents.slice(0, 5).map(d => {
-      const course = courseMap[d.course_id];
-      return `- ${d.title}${course ? ` (${course.name})` : ''}${d.content_summary ? ': ' + d.content_summary.slice(0, 150) : ''}`;
-    }).join('\n');
+    // Readings/materials grouped by course
+    const readingsByCourse: Record<string, any[]> = {};
+    documents.forEach((d: any) => {
+      const cname = d.course_id ? (courseMap[d.course_id]?.name || 'Other') : null;
+      if (!cname) return;
+      if (!readingsByCourse[cname]) readingsByCourse[cname] = [];
+      readingsByCourse[cname].push(d);
+    });
 
-    // Build due dates context
-    const dueContext = dueThisWeek.length > 0
-      ? dueThisWeek.map(a => {
-          const course = courseMap[a.course_id];
-          const d = new Date(a.due_date.includes('T') ? a.due_date : a.due_date + 'T12:00:00');
-          const dayName = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-          return `- ${a.title} (${course?.name || 'Unknown'}) — due ${dayName}${a.weight ? `, worth ${a.weight}%` : ''}`;
-        }).join('\n')
-      : 'No assignments due this week — a great time to get ahead!';
+    // Build per-class summary
+    const allCourseNames = Array.from(new Set([...Object.keys(byCourse), ...Object.keys(readingsByCourse)]));
+    const classSections = allCourseNames.map((cname) => {
+      const dues = (byCourse[cname] || []).map((a) => {
+        const d = parseDate(a.due_date);
+        const dayName = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        return `  • ${a.title} — due ${dayName}${a.weight ? ` (${a.weight}%)` : ''}`;
+      }).join('\n');
+      const readings = (readingsByCourse[cname] || []).slice(0, 4).map((d) =>
+        `  • ${d.title}${d.content_summary ? ': ' + d.content_summary.slice(0, 120) : ''}`
+      ).join('\n');
+      return `### ${cname}\nDEADLINES:\n${dues || '  • Nothing due this week'}\nREADINGS & MATERIALS:\n${readings || '  • No recent materials'}`;
+    }).join('\n\n');
 
-    // Generate email content with AI + web search for motivational quote
     const emailContent = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: `You are a supportive academic coach writing a weekly Monday morning digest email for a college student.
+      prompt: `You are a supportive academic coach writing a weekly Sunday morning report email for a college student, previewing the week ahead.
 
-Today is Monday, ${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}.
+Today is Sunday, ${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}.
 
-ASSIGNMENTS DUE THIS WEEK:
-${dueContext}
+Here is the student's upcoming week organized by class. For each class, DEADLINES lists assignments/exams due this week with their due dates, and READINGS & MATERIALS lists recently uploaded course materials.
 
-RECENT COURSE MATERIALS (what's being covered):
-${recentDocs || 'No recent documents uploaded.'}
+${classSections || 'No classes or assignments found.'}
 
-Write a warm, motivating weekly digest email in clean HTML with:
-1. A friendly greeting opening
-2. A "This Week's Deadlines" section listing each due assignment with its course and day
-3. A "What You're Covering" section briefly summarizing the course material topics
-4. A motivational quote or message about perseverance, staying focused, pushing through, and achieving academic goals — search your knowledge for a powerful, relevant quote from a well-known figure or an original motivational message
-5. A warm closing sign-off
+Write a warm, motivating weekly Sunday report email in clean HTML with:
+1. A friendly Sunday greeting opening
+2. A "This Week Ahead" section organized by class — for each class, list upcoming deadlines and readings/materials
+3. A motivational quote or message about perseverance, focus, and achieving academic goals
+4. A warm closing sign-off
 
 Style: encouraging, concise, student-focused. Use simple HTML with inline styles — a clean white card layout, dark headings, colored accent for deadlines (#6366f1 indigo). No external CSS frameworks. Make it look great in an email client.`,
       add_context_from_internet: true,
@@ -69,14 +81,15 @@ Style: encouraging, concise, student-focused. Use simple HTML with inline styles
     });
 
     await base44.asServiceRole.integrations.Core.SendEmail({
-      to: 'tekleat@gmail.com',
+      to: 'teklea@mail.gvsu.edu',
       subject: `📚 Your Week Ahead — ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
       body: emailContent,
       from_name: 'StudyBuddy',
     });
 
-    return Response.json({ success: true, assignments_this_week: dueThisWeek.length });
+    return Response.json({ success: true, assignments_this_week: dueThisWeek.length, courses: allCourseNames.length });
   } catch (error) {
+    console.error('weeklyDigest error', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
