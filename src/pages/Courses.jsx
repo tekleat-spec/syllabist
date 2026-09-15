@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Plus, Trash2, Edit2, MoreVertical, CheckCircle2, RotateCcw, Archive } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Edit2, MoreVertical, CheckCircle2, RotateCcw, Archive, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ export default function Courses() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ['courses'],
@@ -78,7 +80,10 @@ export default function Courses() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: i * 0.05 }}
       >
-        <Card className={`p-5 hover:shadow-md transition-shadow relative group ${isPast ? 'opacity-70' : ''}`}>
+        <Card
+          className={`p-5 hover:shadow-md hover:border-primary/40 transition-all relative group cursor-pointer ${isPast ? 'opacity-70' : ''}`}
+          onClick={() => navigate('/workshop', { state: { expandCourseId: course.id } })}
+        >
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${colorClass}`} />
@@ -90,7 +95,7 @@ export default function Courses() {
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -127,6 +132,9 @@ export default function Courses() {
                 Avg: {avg}%
               </Badge>
             )}
+            <span className="ml-auto text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+              <FolderOpen className="w-3.5 h-3.5" /> Open
+            </span>
           </div>
         </Card>
       </motion.div>

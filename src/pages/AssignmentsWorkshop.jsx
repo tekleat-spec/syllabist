@@ -1,10 +1,13 @@
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { Wrench } from 'lucide-react';
 import CourseFolder from '@/components/workshop/CourseFolder';
 import EmptyState from '@/components/shared/EmptyState';
 
 export default function AssignmentsWorkshop() {
+  const location = useLocation();
+  const expandCourseId = location.state?.expandCourseId;
   const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
     queryFn: () => base44.entities.Course.list(),
@@ -46,6 +49,7 @@ export default function AssignmentsWorkshop() {
               course={course}
               assignments={assignments.filter(a => a.course_id === course.id)}
               documents={documents.filter(d => d.course_id === course.id)}
+              defaultOpen={course.id === expandCourseId}
             />
           ))}
         </div>

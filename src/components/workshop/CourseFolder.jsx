@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import AssignmentFolder from './AssignmentFolder';
 import CourseDocuments from './CourseDocuments';
 
-export default function CourseFolder({ course, assignments, documents }) {
-  const [open, setOpen] = useState(false);
+export default function CourseFolder({ course, assignments, documents, defaultOpen }) {
+  const [open, setOpen] = useState(!!defaultOpen);
   const [assignmentFolders, setAssignmentFolders] = useState(
     assignments.map(a => ({ name: a.title, dueDate: a.due_date }))
   );
