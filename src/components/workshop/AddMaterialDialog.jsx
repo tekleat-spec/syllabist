@@ -64,58 +64,88 @@ If STUDY MATERIAL: A structured hierarchical outline (I, II, III / A, B, C) refl
 }
 
 export default function AddMaterialDialog({ open, onClose, courseId, assignmentName, onAdded }) {
+  const [mode, setMode] = useState('single');
   const [itemType, setItemType] = useState('pdf');
   const [title, setTitle] = useState('');
   const [file, setFile] = useState(null);
   const [sourceUrl, setSourceUrl] = useState('');
+  const [bulkFiles, setBulkFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadStage, setUploadStage] = useState('');
 
   const isFileType = ['pdf', 'slides', 'other', 'instructions'].includes(itemType);
   const isUrlType = ['url', 'video_url'].includes(itemType);
 
+  const reset = () => {
+    setTitle(''); setFile(null); setSourceUrl(''); setBulkFiles([]);
+    setUploading(false); setUploadStage('');
+  };
+
+  const processOne = async (itemData, fileObj) => {
+    let file_url = '';
+    if (fileObj) {
+      const res = await base44.integrations.Core.UploadFile({ file: fileObj });
+      file_url = res.file_url;
+    }
+    const created = await base44.entities.WorkshopItem.create({
+      ...itemData,
+      file_url: file_url || undefined,
+      status: 'processing',
+    });
+    onAdded();
+    const itemWithUrl = { ...created, file_url: file_url || created.file_url, source_url: itemData.source_url };
+    const analysis = await analyzeItem(itemWithUrl);
+    await base44.entities.WorkshopItem.update(created.id, analysis);
+    onAdded();
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setUploading(true);
     setUploadStage('Uploading…');
-
-    let file_url = '';
-    if (isFileType && file) {
-      const res = await base44.integrations.Core.UploadFile({ file });
-      file_url = res.file_url;
+    try {
+      await processOne({
+        course_id: courseId,
+        assignment_name: assignmentName,
+        item_type: itemType,
+        title: title.trim(),
+        source_url: isUrlType ? sourceUrl.trim() : undefined,
+      }, isFileType ? file : null);
+      onClose();
+      reset();
+    } catch (e) {
+      console.error('Failed to add material:', e);
+      setUploading(false);
+      setUploadStage('');
     }
+  };
 
-    // Build the full item data so analyzeItem has file_url available
-    const itemData = {
-      course_id: courseId,
-      assignment_name: assignmentName,
-      item_type: itemType,
-      title: title.trim(),
-      file_url: file_url || undefined,
-      source_url: isUrlType ? sourceUrl.trim() : undefined,
-      status: 'processing',
-    };
+  const handleBulkFiles = (e) => {
+    const files = Array.from(e.target.files || []);
+    setBulkFiles(files.map(f => ({ file: f, title: f.name.replace(/\.[^.]+$/, '') })));
+  };
 
-    const item = await base44.entities.WorkshopItem.create(itemData);
+  const updateBulkTitle = (i, val) =>
+    setBulkFiles(prev => prev.map((b, idx) => (idx === i ? { ...b, title: val } : b)));
 
-    // Notify parent so it shows the card immediately with "Analyzing" state
-    onAdded();
+  const handleBulkSubmit = async () => {
+    if (!bulkFiles.length) return;
+    setUploading(true);
+    for (let i = 0; i < bulkFiles.length; i++) {
+      setUploadStage(`Uploading ${i + 1} of ${bulkFiles.length}…`);
+      try {
+        await processOne({
+          course_id: courseId,
+          assignment_name: assignmentName,
+          item_type: itemType,
+          title: bulkFiles[i].title.trim() || bulkFiles[i].file.name,
+        }, bulkFiles[i].file);
+      } catch (e) {
+        console.error('Failed to add material:', bulkFiles[i].title, e);
+      }
+    }
     onClose();
-
-    // Reset form
-    setTitle('');
-    setFile(null);
-    setSourceUrl('');
-    setUploading(false);
-    setUploadStage('');
-
-    // Run analysis — pass enriched item object with file_url guaranteed
-    const itemWithUrl = { ...item, file_url: file_url || item.file_url, source_url: isUrlType ? sourceUrl.trim() : item.source_url };
-    const analysis = await analyzeItem(itemWithUrl);
-    await base44.entities.WorkshopItem.update(item.id, analysis);
-
-    // Notify parent again so it refreshes with full analysis
-    onAdded();
+    reset();
   };
 
   return (
@@ -124,6 +154,20 @@ export default function AddMaterialDialog({ open, onClose, courseId, assignmentN
         <DialogHeader>
           <DialogTitle>Add Material</DialogTitle>
         </DialogHeader>
+
+        <div className="flex gap-1 p-1 bg-muted rounded-lg">
+          <button
+            type="button"
+            onClick={() => setMode('single')}
+            className={`flex-1 text-sm font-medium py-1.5 rounded-md transition-colors ${mode === 'single' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+          >Single</button>
+          <button
+            type="button"
+            onClick={() => setMode('bulk')}
+            className={`flex-1 text-sm font-medium py-1.5 rounded-md transition-colors ${mode === 'bulk' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+          >Bulk Upload</button>
+        </div>
+
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>Type</Label>
@@ -140,34 +184,61 @@ export default function AddMaterialDialog({ open, onClose, courseId, assignmentN
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Title</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Lecture Notes Ch. 3" />
-          </div>
+          {mode === 'single' ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>Title</Label>
+                <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Lecture Notes Ch. 3" />
+              </div>
 
-          {isFileType && (
-            <div className="space-y-1.5">
-              <Label>File</Label>
-              <input type="file" onChange={e => setFile(e.target.files[0])} className="text-sm text-muted-foreground" />
-            </div>
-          )}
+              {isFileType && (
+                <div className="space-y-1.5">
+                  <Label>File</Label>
+                  <input type="file" onChange={e => setFile(e.target.files[0])} className="text-sm text-muted-foreground" />
+                </div>
+              )}
 
-          {isUrlType && (
-            <div className="space-y-1.5">
-              <Label>URL</Label>
-              <Input value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} placeholder="https://..." />
+              {isUrlType && (
+                <div className="space-y-1.5">
+                  <Label>URL</Label>
+                  <Input value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} placeholder="https://..." />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              <div className="space-y-1.5">
+                <Label>Files</Label>
+                <input type="file" multiple onChange={handleBulkFiles} className="text-sm text-muted-foreground" />
+              </div>
+              {bulkFiles.length > 0 && (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {bulkFiles.map((b, i) => (
+                    <Input key={i} value={b.title} onChange={e => updateBulkTitle(i, e.target.value)} placeholder={b.file.name} className="text-sm" />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={onClose} disabled={uploading}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={uploading || !title.trim()}>
-            {uploading
-              ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />{uploadStage}</>
-              : <><Upload className="w-4 h-4 mr-2" />Add & Analyze</>
-            }
-          </Button>
+          {mode === 'single' ? (
+            <Button onClick={handleSubmit} disabled={uploading || !title.trim()}>
+              {uploading
+                ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />{uploadStage}</>
+                : <><Upload className="w-4 h-4 mr-2" />Add & Analyze</>
+              }
+            </Button>
+          ) : (
+            <Button onClick={handleBulkSubmit} disabled={uploading || bulkFiles.length === 0}>
+              {uploading
+                ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />{uploadStage}</>
+                : <><Upload className="w-4 h-4 mr-2" />Add & Analyze ({bulkFiles.length})</>
+              }
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
