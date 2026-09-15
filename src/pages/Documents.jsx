@@ -2,12 +2,12 @@ import React, { useState, useMemo } from 'react';
 import usePullToRefresh from '@/hooks/usePullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Sparkles, Loader2, CheckSquare, BookOpen, AlignLeft, ChevronDown, Download } from 'lucide-react';
+import { FileText, Sparkles, Loader2, CheckSquare, BookOpen, AlignLeft, ChevronDown, Download, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
@@ -28,6 +28,7 @@ export default function Documents() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [savingBulk, setSavingBulk] = useState(false);
   const [collapsed, setCollapsed] = useState({});
 
   const { data: documents = [], isLoading } = useQuery({
@@ -111,7 +112,7 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
       ...(fileUrls.length > 0 && { file_urls: fileUrls }),
     });
 
-    setBulkResult({ type, content: typeof result === 'string' ? result : result?.response || '', titles: docs.map(d => d.title) });
+    setBulkResult({ type, content: typeof result === 'string' ? result : result?.response || '', titles: docs.map(d => d.title), course_ids: docs.map(d => d.course_id) });
     setBulkGenerating(false);
   };
 
@@ -133,6 +134,43 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
       await new Promise(r => setTimeout(r, 400));
     }
     setDownloadingAll(false);
+  };
+
+  const handleDownloadContent = (content, filename) => {
+    const blob = new Blob([content || ''], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSaveBulkResult = async () => {
+    if (!bulkResult) return;
+    setSavingBulk(true);
+    const courseIds = (bulkResult.course_ids || []).filter(Boolean);
+    const course_id = courseIds.length && courseIds.every(id => id === courseIds[0]) ? courseIds[0] : null;
+    const label = bulkResult.type === 'study_guide' ? 'Study Guide' : 'Summary';
+    try {
+      await base44.entities.Document.create({
+        title: `${label}: ${bulkResult.titles.join(', ')}`,
+        type: bulkResult.type === 'study_guide' ? 'study_guide' : 'other',
+        generated_content: bulkResult.content,
+        generation_type: bulkResult.type === 'study_guide' ? 'study_guide' : 'summary',
+        content_summary: `Consolidated ${label.toLowerCase()} from: ${bulkResult.titles.join(', ')}`,
+        status: 'processed',
+        course_id,
+      });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      setBulkResult(null);
+    } catch (e) {
+      console.error('Failed to save generated content:', e);
+    } finally {
+      setSavingBulk(false);
+    }
   };
 
   const courseGroups = useMemo(() => {
@@ -270,6 +308,24 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
           <div className="mt-4">
             <MarkdownContent content={bulkResult?.content || ''} />
           </div>
+          <DialogFooter className="gap-2 sm:gap-2 mt-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDownloadContent(bulkResult?.content, `${bulkResult?.type === 'study_guide' ? 'study-guide' : 'summary'}`)}
+            >
+              <Download className="w-4 h-4 mr-1.5" />
+              Download
+            </Button>
+            <Button
+              size="sm"
+              disabled={savingBulk}
+              onClick={handleSaveBulkResult}
+            >
+              {savingBulk ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
+              Save to Course Folder
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -285,6 +341,19 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
           <div className="mt-4">
             <MarkdownContent content={selectedDoc?.generated_content || 'No content generated yet.'} />
           </div>
+          <DialogFooter className="gap-2 sm:gap-2 mt-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDownloadContent(
+                selectedDoc?.generated_content,
+                `${selectedDoc?.title}-${(selectedDoc?.generation_type || 'content').replace(/_/g, '-')}`
+              )}
+            >
+              <Download className="w-4 h-4 mr-1.5" />
+              Download
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
