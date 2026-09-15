@@ -12,9 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import DocumentCard from '@/components/documents/DocumentCard';
+import MarkdownContent from '@/components/shared/MarkdownContent';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import ReactMarkdown from 'react-markdown';
 
 export default function Documents() {
   const queryClient = useQueryClient();
@@ -267,8 +267,8 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
               <p className="text-xs text-muted-foreground pt-1">From: {bulkResult.titles.join(', ')}</p>
             )}
           </DialogHeader>
-          <div className="prose prose-sm max-w-none mt-4 dark:prose-invert">
-            <ReactMarkdown>{bulkResult?.content || ''}</ReactMarkdown>
+          <div className="mt-4">
+            <MarkdownContent content={bulkResult?.content || ''} />
           </div>
         </DialogContent>
       </Dialog>
@@ -282,8 +282,8 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
               {selectedDoc?.title} — {selectedDoc?.generation_type?.replace(/_/g, ' ')}
             </DialogTitle>
           </DialogHeader>
-          <div className="prose prose-sm max-w-none mt-4">
-            <ReactMarkdown>{selectedDoc?.generated_content || 'No content generated yet.'}</ReactMarkdown>
+          <div className="mt-4">
+            <MarkdownContent content={selectedDoc?.generated_content || 'No content generated yet.'} />
           </div>
         </DialogContent>
       </Dialog>
