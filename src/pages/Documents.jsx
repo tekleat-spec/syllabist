@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import DocumentCard from '@/components/documents/DocumentCard';
@@ -30,6 +31,7 @@ export default function Documents() {
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [savingBulk, setSavingBulk] = useState(false);
   const [collapsed, setCollapsed] = useState({});
+  const [saveName, setSaveName] = useState('');
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents'],
@@ -112,7 +114,9 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
       ...(fileUrls.length > 0 && { file_urls: fileUrls }),
     });
 
+    const saveLabel = type === 'study_guide' ? 'Study Guide' : 'Summary';
     setBulkResult({ type, content: typeof result === 'string' ? result : result?.response || '', titles: docs.map(d => d.title), course_ids: docs.map(d => d.course_id) });
+    setSaveName(`${saveLabel}: ${docs.map(d => d.title).join(', ')}`);
     setBulkGenerating(false);
   };
 
@@ -154,9 +158,10 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
     const courseIds = (bulkResult.course_ids || []).filter(Boolean);
     const course_id = courseIds.length && courseIds.every(id => id === courseIds[0]) ? courseIds[0] : null;
     const label = bulkResult.type === 'study_guide' ? 'Study Guide' : 'Summary';
+    const name = (saveName || '').trim() || `${label}: ${bulkResult.titles.join(', ')}`;
     try {
       await base44.entities.Document.create({
-        title: `${label}: ${bulkResult.titles.join(', ')}`,
+        title: name,
         type: bulkResult.type === 'study_guide' ? 'study_guide' : 'other',
         generated_content: bulkResult.content,
         generation_type: bulkResult.type === 'study_guide' ? 'study_guide' : 'summary',
@@ -307,6 +312,14 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
           </DialogHeader>
           <div className="mt-4">
             <MarkdownContent content={bulkResult?.content || ''} />
+          </div>
+          <div className="mt-5 space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Save as</label>
+            <Input
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder="Name this generated material…"
+            />
           </div>
           <DialogFooter className="gap-2 sm:gap-2 mt-6">
             <Button
