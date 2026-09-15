@@ -56,14 +56,15 @@ export default function Documents() {
     };
 
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Based on the following document content, create ${typeLabels[generationType]}. 
+      prompt: `Based on the attached document, create ${typeLabels[generationType]}. 
       
 Document Title: ${doc.title}
-Document Summary: ${doc.content_summary || 'No summary available'}
 Document Type: ${doc.type}
+${doc.content_summary ? `Stored Summary: ${doc.content_summary}` : ''}
 
-Please create well-structured, detailed ${typeLabels[generationType]} using markdown formatting. Include all key concepts, important details, and organize the content logically.`,
+Analyze the full content of the attached file — including all text, figures, tables, and images — and create well-structured, detailed ${typeLabels[generationType]} using markdown formatting. Include all key concepts, important details, and organize the content logically.`,
       model: 'claude_sonnet_4_6',
+      ...(doc.file_url && { file_urls: [doc.file_url] }),
     });
 
     await base44.entities.Document.update(doc.id, {
@@ -91,12 +92,14 @@ Please create well-structured, detailed ${typeLabels[generationType]} using mark
     ).join('\n\n---\n\n');
 
     const label = type === 'summary' ? 'a consolidated summary' : 'a comprehensive study guide';
+    const fileUrls = docs.filter(d => d.file_url).map(d => d.file_url);
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `You are an expert study assistant. The student has selected the following ${docs.length} documents and wants ${label} that synthesizes all of them into one cohesive document.
 
 ${docsText}
 
 Instructions:
+- Analyze the full content of each attached file — including all text, figures, tables, and images
 - Merge and synthesize all content — don't just list each doc separately
 - Use clear markdown formatting with headers, bullets, and emphasis
 - For a study guide: include key concepts, definitions, important facts, and review questions at the end
@@ -105,6 +108,7 @@ Instructions:
 
 Documents included: ${docs.map(d => d.title).join(', ')}`,
       model: 'claude_sonnet_4_6',
+      ...(fileUrls.length > 0 && { file_urls: fileUrls }),
     });
 
     setBulkResult({ type, content: typeof result === 'string' ? result : result?.response || '', titles: docs.map(d => d.title) });
