@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Upload as UploadIcon, FileUp, Loader2, CheckCircle2, BookOpen, FileText, Megaphone, GraduationCap } from 'lucide-react';
+import { Upload as UploadIcon, FileUp, Loader2, CheckCircle2, BookOpen, FileText, Megaphone, GraduationCap, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,11 +31,12 @@ export default function Upload() {
   const queryClient = useQueryClient();
   const initialTab = new URLSearchParams(window.location.search).get('tab') || 'syllabus';
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [newCourseName, setNewCourseName] = useState('');
   const [processing, setProcessing] = useState(false);
   const [done, setDone] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, name: '' });
 
   const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
@@ -43,10 +44,11 @@ export default function Upload() {
   });
 
   const handleUpload = async () => {
-    if (!file) { toast.error('Please select a file.'); return; }
+    if (!files.length) { toast.error('Please select at least one file.'); return; }
 
     setProcessing(true);
     setDone(false);
+    setProgress({ current: 0, total: files.length, name: '' });
 
     // Determine course
     let targetCourseId = courseId;
@@ -56,25 +58,40 @@ export default function Upload() {
       queryClient.invalidateQueries({ queryKey: ['courses'] });
     }
 
-    // Upload file
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-
     const docType = activeTab === 'syllabus' ? 'syllabus' : activeTab === 'announcement' ? 'announcement' : 'notes';
 
-    if (activeTab === 'syllabus') {
-      await processSyllabus(file_url, targetCourseId, docType, file?.name);
-    } else if (activeTab === 'announcement') {
-      await processAnnouncement(file_url, targetCourseId, docType, file?.name);
-    } else if (activeTab === 'gradebook') {
-      await processGradebook(file_url, targetCourseId, file?.name);
-    } else {
-      await processMaterial(file_url, targetCourseId, file?.name);
+    let succeeded = 0;
+    let failed = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      const currentFile = files[i];
+      setProgress({ current: i + 1, total: files.length, name: currentFile.name });
+      try {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file: currentFile });
+
+        if (activeTab === 'syllabus') {
+          await processSyllabus(file_url, targetCourseId, docType, currentFile.name);
+        } else if (activeTab === 'announcement') {
+          await processAnnouncement(file_url, targetCourseId, docType, currentFile.name);
+        } else if (activeTab === 'gradebook') {
+          await processGradebook(file_url, targetCourseId, currentFile.name);
+        } else {
+          await processMaterial(file_url, targetCourseId, currentFile.name);
+        }
+        succeeded++;
+      } catch (err) {
+        console.error('Upload failed for', currentFile.name, err);
+        failed++;
+        toast.error(`Failed: ${currentFile.name}`);
+      }
     }
 
     setProcessing(false);
     setDone(true);
-    setFile(null);
+    setFiles([]);
+    setProgress({ current: 0, total: 0, name: '' });
     setTimeout(() => setDone(false), 3000);
+    if (succeeded > 0) toast.success(`${succeeded} file${succeeded !== 1 ? 's' : ''} processed${failed ? `, ${failed} failed` : ''}.`);
   };
 
   const processSyllabus = async (fileUrl, targetCourseId, docType, fileName) => {
@@ -269,7 +286,7 @@ export default function Upload() {
       const data = extracted.output;
 
       await base44.entities.Document.create({
-        title: data.title || file?.name || 'Course Material',
+        title: data.title || fileName || 'Course Material',
         course_id: targetCourseId,
         type: data.document_type || 'other',
         file_url: fileUrl,
@@ -439,43 +456,65 @@ export default function Upload() {
 
           {/* File Upload Zone */}
           <div className="space-y-2">
-            <Label>File</Label>
+            <Label>Files {files.length > 0 && `(${files.length})`}</Label>
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all">
               <input
                 type="file"
+                multiple
                 className="hidden"
                 accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.csv,.xlsx,.png,.jpg,.jpeg,.html"
-                onChange={e => setFile(e.target.files?.[0] || null)}
+                onChange={e => setFiles(prev => [...prev, ...Array.from(e.target.files || [])])}
               />
               <AnimatePresence mode="wait">
-                {file ? (
-                  <motion.div key="file" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
+                {files.length ? (
+                  <motion.div key="files" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center w-full">
                     <CheckCircle2 className="w-8 h-8 text-accent mx-auto mb-2" />
-                    <p className="text-sm font-medium text-foreground">{file.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p className="text-sm font-medium text-foreground">{files.length} file{files.length !== 1 ? 's' : ''} selected</p>
+                    <p className="text-xs text-muted-foreground mt-1">Click to add more</p>
                   </motion.div>
                 ) : (
                   <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
                     <FileUp className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Drop your file here or click to browse</p>
-                    <p className="text-xs text-muted-foreground mt-1">PDF, Word, PPTX, TXT, images</p>
+                    <p className="text-sm text-muted-foreground">Drop your files here or click to browse</p>
+                    <p className="text-xs text-muted-foreground mt-1">Select multiple — PDF, Word, PPTX, TXT, images</p>
                   </motion.div>
                 )}
               </AnimatePresence>
             </label>
+
+            {/* Selected files list */}
+            {files.length > 0 && (
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {files.map((f, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-foreground truncate flex-1">{f.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                    {!processing && (
+                      <button
+                        onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))}
+                        className="text-muted-foreground hover:text-destructive shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Upload Button */}
           <Button
             onClick={handleUpload}
-            disabled={processing || !file || (!courseId || (courseId === 'new' && !newCourseName))}
+            disabled={processing || !files.length || (!courseId || (courseId === 'new' && !newCourseName))}
             className="w-full gap-2"
             size="lg"
           >
             {processing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Processing...
+                Processing {progress.current}/{progress.total}...
               </>
             ) : done ? (
               <>
@@ -485,7 +524,7 @@ export default function Upload() {
             ) : (
               <>
                 <UploadIcon className="w-4 h-4" />
-                Upload & Process
+                {files.length > 1 ? `Upload & Process ${files.length} Files` : 'Upload & Process'}
               </>
             )}
           </Button>
