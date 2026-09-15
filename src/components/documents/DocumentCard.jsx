@@ -49,7 +49,7 @@ export default function DocumentCard({ doc, course, index, selectionMode, select
                   <Download className="w-3.5 h-3.5 mr-2" /> Download
                 </DropdownMenuItem>
               )}
-              {doc.generated_content && (
+              {doc.generation_type && doc.generation_type !== 'none' && (
                 <DropdownMenuItem onClick={() => onViewGenerated(doc)}>
                   <Eye className="w-3.5 h-3.5 mr-2" /> View Generated
                 </DropdownMenuItem>

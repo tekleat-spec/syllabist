@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import usePullToRefresh from '@/hooks/usePullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -30,6 +30,8 @@ export default function Documents() {
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [deletingBulk, setDeletingBulk] = useState(false);
   const [collapsed, setCollapsed] = useState({});
+  const [viewContent, setViewContent] = useState('');
+  const [viewLoading, setViewLoading] = useState(false);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents'],
@@ -83,6 +85,21 @@ Analyze the full content of the attached file — including all text, figures, t
     prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
   );
 
+  useEffect(() => {
+    if (!selectedDoc) { setViewContent(''); return; }
+    if (selectedDoc.generated_content) { setViewContent(selectedDoc.generated_content); return; }
+    if (selectedDoc.file_url && selectedDoc.generation_type && selectedDoc.generation_type !== 'none') {
+      setViewLoading(true);
+      fetch(selectedDoc.file_url)
+        .then(r => r.text())
+        .then(t => setViewContent(t || 'No content available.'))
+        .catch(() => setViewContent('Failed to load content.'))
+        .finally(() => setViewLoading(false));
+    } else {
+      setViewContent('No content generated yet.');
+    }
+  }, [selectedDoc]);
+
   const handleBulkGenerate = async (type) => {
     const docs = filtered.filter(d => selectedIds.includes(d.id));
     if (!docs.length) return;
@@ -120,10 +137,12 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
 
     let savedId = null;
     try {
+      const file = new File([content], `${type === 'study_guide' ? 'study-guide' : 'summary'}.md`, { type: 'text/markdown' });
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const created = await base44.entities.Document.create({
         title: name,
         type: type === 'study_guide' ? 'study_guide' : 'other',
-        generated_content: content,
+        file_url,
         generation_type: type === 'study_guide' ? 'study_guide' : 'summary',
         content_summary: `Consolidated ${saveLabel.toLowerCase()} from: ${docs.map(d => d.title).join(', ')}`,
         status: 'processed',
@@ -357,16 +376,29 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
             </DialogTitle>
           </DialogHeader>
           <div className="mt-4">
-            <MarkdownContent content={selectedDoc?.generated_content || 'No content generated yet.'} />
+            {viewLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading content…
+              </div>
+            ) : (
+              <MarkdownContent content={viewContent} />
+            )}
           </div>
           <DialogFooter className="gap-2 sm:gap-2 mt-6">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleDownloadContent(
-                selectedDoc?.generated_content,
-                `${selectedDoc?.title}-${(selectedDoc?.generation_type || 'content').replace(/_/g, '-')}`
-              )}
+              onClick={() => {
+                if (selectedDoc?.generated_content) {
+                  handleDownloadContent(selectedDoc.generated_content, `${selectedDoc?.title}-${(selectedDoc?.generation_type || 'content').replace(/_/g, '-')}`);
+                } else if (selectedDoc?.file_url) {
+                  const a = document.createElement('a');
+                  a.href = selectedDoc.file_url;
+                  a.download = `${selectedDoc?.title || 'content'}.md`;
+                  a.target = '_blank';
+                  a.click();
+                }
+              }}
             >
               <Download className="w-4 h-4 mr-1.5" />
               Download
