@@ -15,6 +15,11 @@ export default function AssignmentsWorkshop() {
     queryFn: () => base44.entities.Assignment.list(),
   });
 
+  const { data: documents = [] } = useQuery({
+    queryKey: ['documents'],
+    queryFn: () => base44.entities.Document.list('-created_date'),
+  });
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
@@ -40,6 +45,7 @@ export default function AssignmentsWorkshop() {
               key={course.id}
               course={course}
               assignments={assignments.filter(a => a.course_id === course.id)}
+              documents={documents.filter(d => d.course_id === course.id)}
             />
           ))}
         </div>

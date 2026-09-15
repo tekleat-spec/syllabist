@@ -3,8 +3,9 @@ import { ChevronDown, ChevronRight, FolderOpen, Folder, Plus } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AssignmentFolder from './AssignmentFolder';
+import CourseDocuments from './CourseDocuments';
 
-export default function CourseFolder({ course, assignments }) {
+export default function CourseFolder({ course, assignments, documents }) {
   const [open, setOpen] = useState(false);
   const [assignmentFolders, setAssignmentFolders] = useState(
     assignments.map(a => ({ name: a.title, dueDate: a.due_date }))
@@ -36,12 +37,16 @@ export default function CourseFolder({ course, assignments }) {
           <p className="font-semibold text-sm">{course.name}</p>
           {course.code && <p className="text-xs text-muted-foreground">{course.code}</p>}
         </div>
-        <span className="text-xs text-muted-foreground mr-2">{assignmentFolders.length} assignments</span>
+        <span className="text-xs text-muted-foreground mr-2">
+          {assignmentFolders.length} assignments{documents && documents.length > 0 ? ` · ${documents.length} docs` : ''}
+        </span>
         {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
       </button>
 
       {open && (
         <div className="px-5 pb-5 pt-3 bg-muted/20 space-y-3">
+          {documents && documents.length > 0 && <CourseDocuments documents={documents} />}
+
           {assignmentFolders.length === 0 && !adding && (
             <p className="text-sm text-muted-foreground text-center py-4">No assignment folders yet.</p>
           )}
