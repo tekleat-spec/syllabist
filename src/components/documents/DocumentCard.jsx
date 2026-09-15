@@ -20,8 +20,8 @@ export default function DocumentCard({ doc, course, index, selectionMode, select
       transition={{ delay: index * 0.03 }}
     >
       <Card
-        className={`p-5 hover:shadow-md transition-shadow group relative cursor-pointer ${selectionMode && selected ? 'ring-2 ring-primary bg-primary/5' : ''}`}
-        onClick={selectionMode ? () => onToggleSelect(doc.id) : undefined}
+        className={`p-5 hover:shadow-md transition-shadow group relative ${selectionMode ? 'cursor-pointer' : doc.file_url ? 'cursor-pointer hover:border-primary/40' : ''} ${selectionMode && selected ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+        onClick={selectionMode ? () => onToggleSelect(doc.id) : doc.file_url ? () => window.open(doc.file_url, '_blank') : undefined}
       >
         {selectionMode && (
           <div className="absolute top-3 left-3 z-10">
@@ -34,13 +34,18 @@ export default function DocumentCard({ doc, course, index, selectionMode, select
           <span className="text-2xl">{typeIcons[doc.type] || typeIcons.other}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100">
+              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {doc.file_url && (
                 <DropdownMenuItem onClick={() => window.open(doc.file_url, '_blank')}>
+                  <Eye className="w-3.5 h-3.5 mr-2" /> View
+                </DropdownMenuItem>
+              )}
+              {doc.file_url && (
+                <DropdownMenuItem onClick={() => { const a = document.createElement('a'); a.href = doc.file_url; a.download = doc.title || ''; a.target='_blank'; a.click(); }}>
                   <Download className="w-3.5 h-3.5 mr-2" /> Download
                 </DropdownMenuItem>
               )}
@@ -80,7 +85,7 @@ export default function DocumentCard({ doc, course, index, selectionMode, select
               size="sm"
               className="text-[10px] h-7 px-2"
               disabled={generating === doc.id}
-              onClick={() => onGenerate(doc, type)}
+              onClick={(e) => { e.stopPropagation(); onGenerate(doc, type); }}
             >
               {generating === doc.id ? (
                 <Loader2 className="w-3 h-3 mr-1 animate-spin" />
