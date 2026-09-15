@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import usePullToRefresh from '@/hooks/usePullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Sparkles, Loader2, CheckSquare, BookOpen, AlignLeft, ChevronDown } from 'lucide-react';
+import { FileText, Sparkles, Loader2, CheckSquare, BookOpen, AlignLeft, ChevronDown, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -111,6 +111,26 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
     setBulkGenerating(false);
   };
 
+  const [downloadingAll, setDownloadingAll] = useState(false);
+
+  const handleBulkDownload = async () => {
+    const docs = filtered.filter(d => d.file_url);
+    if (!docs.length) return;
+    setDownloadingAll(true);
+    for (const doc of docs) {
+      const a = document.createElement('a');
+      a.href = doc.file_url;
+      a.download = doc.title || 'document';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      await new Promise(r => setTimeout(r, 400));
+    }
+    setDownloadingAll(false);
+  };
+
   const courseGroups = useMemo(() => {
     const groups = {};
     filtered.forEach(d => {
@@ -146,6 +166,15 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
                 {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={downloadingAll || !filtered.some(d => d.file_url)}
+              onClick={handleBulkDownload}
+            >
+              {downloadingAll ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
+              {downloadingAll ? 'Downloading…' : 'Download All'}
+            </Button>
             <Button
               variant={selectionMode ? 'secondary' : 'outline'}
               size="sm"
