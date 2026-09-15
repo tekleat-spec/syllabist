@@ -57,6 +57,13 @@ export default function Documents() {
       outline: 'a structured outline',
       paper_draft: 'a paper draft',
     };
+    const titleLabels = {
+      study_guide: 'Study Guide',
+      summary: 'Summary',
+      flashcards: 'Flashcards',
+      outline: 'Outline',
+      paper_draft: 'Paper Draft',
+    };
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Based on the attached document, create ${typeLabels[generationType]}. 
@@ -70,12 +77,23 @@ Analyze the full content of the attached file — including all text, figures, t
       ...(doc.file_url && { file_urls: [doc.file_url] }),
     });
 
-    await base44.entities.Document.update(doc.id, {
-      generated_content: result,
-      generation_type: generationType,
-    });
-
-    queryClient.invalidateQueries({ queryKey: ['documents'] });
+    const content = typeof result === 'string' ? result : result?.response || '';
+    try {
+      const file = new File([content], `${generationType}.md`, { type: 'text/markdown' });
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      await base44.entities.Document.create({
+        title: `${titleLabels[generationType]}: ${doc.title}`,
+        type: generationType === 'study_guide' ? 'study_guide' : 'other',
+        file_url,
+        generation_type: generationType,
+        content_summary: `Generated from ${doc.title}`,
+        status: 'processed',
+        course_id: doc.course_id || null,
+      });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    } catch (e) {
+      console.error('Failed to save generated content:', e);
+    }
     setGenerating(null);
   };
 
