@@ -2,14 +2,13 @@ import React, { useState, useMemo } from 'react';
 import usePullToRefresh from '@/hooks/usePullToRefresh';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Sparkles, Loader2, CheckSquare, BookOpen, AlignLeft, ChevronDown, Download, Save } from 'lucide-react';
+import { FileText, Sparkles, Loader2, CheckSquare, BookOpen, AlignLeft, ChevronDown, Download, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import DocumentCard from '@/components/documents/DocumentCard';
@@ -29,9 +28,8 @@ export default function Documents() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkGenerating, setBulkGenerating] = useState(false);
-  const [savingBulk, setSavingBulk] = useState(false);
+  const [deletingBulk, setDeletingBulk] = useState(false);
   const [collapsed, setCollapsed] = useState({});
-  const [saveName, setSaveName] = useState('');
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents'],
@@ -114,9 +112,30 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
       ...(fileUrls.length > 0 && { file_urls: fileUrls }),
     });
 
+    const content = typeof result === 'string' ? result : result?.response || '';
     const saveLabel = type === 'study_guide' ? 'Study Guide' : 'Summary';
-    setBulkResult({ type, content: typeof result === 'string' ? result : result?.response || '', titles: docs.map(d => d.title), course_ids: docs.map(d => d.course_id) });
-    setSaveName(`${saveLabel}: ${docs.map(d => d.title).join(', ')}`);
+    const courseIds = docs.map(d => d.course_id).filter(Boolean);
+    const course_id = courseIds.length && courseIds.every(id => id === courseIds[0]) ? courseIds[0] : (courseIds[0] || null);
+    const name = `${saveLabel}: ${docs.map(d => d.title).join(', ')}`;
+
+    let savedId = null;
+    try {
+      const created = await base44.entities.Document.create({
+        title: name,
+        type: type === 'study_guide' ? 'study_guide' : 'other',
+        generated_content: content,
+        generation_type: type === 'study_guide' ? 'study_guide' : 'summary',
+        content_summary: `Consolidated ${saveLabel.toLowerCase()} from: ${docs.map(d => d.title).join(', ')}`,
+        status: 'processed',
+        course_id,
+      });
+      savedId = created?.id || null;
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    } catch (e) {
+      console.error('Failed to auto-save generated content:', e);
+    }
+
+    setBulkResult({ type, content, titles: docs.map(d => d.title), savedId, course_id });
     setBulkGenerating(false);
   };
 
@@ -152,29 +171,17 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
     URL.revokeObjectURL(url);
   };
 
-  const handleSaveBulkResult = async () => {
-    if (!bulkResult) return;
-    setSavingBulk(true);
-    const courseIds = (bulkResult.course_ids || []).filter(Boolean);
-    const course_id = courseIds.length && courseIds.every(id => id === courseIds[0]) ? courseIds[0] : null;
-    const label = bulkResult.type === 'study_guide' ? 'Study Guide' : 'Summary';
-    const name = (saveName || '').trim() || `${label}: ${bulkResult.titles.join(', ')}`;
+  const handleDeleteBulkResult = async () => {
+    if (!bulkResult?.savedId) { setBulkResult(null); return; }
+    setDeletingBulk(true);
     try {
-      await base44.entities.Document.create({
-        title: name,
-        type: bulkResult.type === 'study_guide' ? 'study_guide' : 'other',
-        generated_content: bulkResult.content,
-        generation_type: bulkResult.type === 'study_guide' ? 'study_guide' : 'summary',
-        content_summary: `Consolidated ${label.toLowerCase()} from: ${bulkResult.titles.join(', ')}`,
-        status: 'processed',
-        course_id,
-      });
+      await base44.entities.Document.delete(bulkResult.savedId);
       queryClient.invalidateQueries({ queryKey: ['documents'] });
-      setBulkResult(null);
     } catch (e) {
-      console.error('Failed to save generated content:', e);
+      console.error('Failed to delete generated content:', e);
     } finally {
-      setSavingBulk(false);
+      setDeletingBulk(false);
+      setBulkResult(null);
     }
   };
 
@@ -313,14 +320,11 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
           <div className="mt-4">
             <MarkdownContent content={bulkResult?.content || ''} />
           </div>
-          <div className="mt-5 space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Save as</label>
-            <Input
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              placeholder="Name this generated material…"
-            />
-          </div>
+          <p className="mt-5 text-xs text-muted-foreground">
+            {bulkResult?.savedId
+              ? 'Saved automatically to its course folder.'
+              : 'Saved automatically, but could not be assigned to a course.'}
+          </p>
           <DialogFooter className="gap-2 sm:gap-2 mt-6">
             <Button
               variant="outline"
@@ -331,12 +335,13 @@ Documents included: ${docs.map(d => d.title).join(', ')}`,
               Download
             </Button>
             <Button
+              variant="destructive"
               size="sm"
-              disabled={savingBulk}
-              onClick={handleSaveBulkResult}
+              disabled={deletingBulk || !bulkResult?.savedId}
+              onClick={handleDeleteBulkResult}
             >
-              {savingBulk ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
-              Save to Course Folder
+              {deletingBulk ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
