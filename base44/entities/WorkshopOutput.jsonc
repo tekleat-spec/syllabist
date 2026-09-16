@@ -12,11 +12,19 @@
     },
     "draft": {
       "type": "string",
-      "description": "AI-generated full draft submission"
+      "description": "AI-generated full draft submission (stored inline when small)"
+    },
+    "draft_url": {
+      "type": "string",
+      "description": "URL of the uploaded draft markdown file (used when content is too large for the field)"
     },
     "study_aids": {
       "type": "string",
-      "description": "AI-generated study aids (outline, key points, notes)"
+      "description": "AI-generated study aids (outline, key points, notes) (stored inline when small)"
+    },
+    "study_aids_url": {
+      "type": "string",
+      "description": "URL of the uploaded study-aids markdown file (used when content is too large for the field)"
     },
     "status": {
       "type": "string",

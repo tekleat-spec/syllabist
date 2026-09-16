@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { base44 } from '@/api/base44Client';
 import { Loader2, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import RemoteMarkdown from '@/components/workshop/RemoteMarkdown';
 
 function buildItemContext(item) {
   const parts = [`[${item.item_type.toUpperCase()}: ${item.title}]`];
@@ -86,16 +86,25 @@ Based strictly on the instructions and materials above, produce:
     const draft = draftMatch ? draftMatch[1].trim() : result;
     const study_aids = studyMatch ? studyMatch[1].trim() : '';
 
+    const draftFile = new File([draft], 'draft.md', { type: 'text/markdown' });
+    const studyFile = new File([study_aids], 'study-aids.md', { type: 'text/markdown' });
+    const draftRes = await base44.integrations.Core.UploadFile({ file: draftFile });
+    const studyRes = await base44.integrations.Core.UploadFile({ file: studyFile });
+
+    const payload = {
+      draft: '',
+      study_aids: '',
+      draft_url: draftRes.file_url,
+      study_aids_url: studyRes.file_url,
+      status: 'done',
+      generated_at: new Date().toISOString(),
+    };
+
     const existing = await base44.entities.WorkshopOutput.filter({ course_id: courseId, assignment_name: assignmentName });
     if (existing.length > 0) {
-      await base44.entities.WorkshopOutput.update(existing[0].id, {
-        draft, study_aids, status: 'done', generated_at: new Date().toISOString()
-      });
+      await base44.entities.WorkshopOutput.update(existing[0].id, payload);
     } else {
-      await base44.entities.WorkshopOutput.create({
-        course_id: courseId, assignment_name: assignmentName,
-        draft, study_aids, status: 'done', generated_at: new Date().toISOString()
-      });
+      await base44.entities.WorkshopOutput.create({ course_id: courseId, assignment_name: assignmentName, ...payload });
     }
 
     onOutputSaved();
@@ -164,16 +173,12 @@ Based strictly on the instructions and materials above, produce:
           </TabsList>
           <TabsContent value="draft" className="flex-1 min-h-0">
             <ScrollArea className="h-full max-h-96">
-              <div className="prose prose-sm max-w-none pr-2">
-                <ReactMarkdown>{output.draft}</ReactMarkdown>
-              </div>
+              <RemoteMarkdown text={output.draft} url={output.draft_url} />
             </ScrollArea>
           </TabsContent>
           <TabsContent value="study" className="flex-1 min-h-0">
             <ScrollArea className="h-full max-h-96">
-              <div className="prose prose-sm max-w-none pr-2">
-                <ReactMarkdown>{output.study_aids}</ReactMarkdown>
-              </div>
+              <RemoteMarkdown text={output.study_aids} url={output.study_aids_url} />
             </ScrollArea>
           </TabsContent>
         </Tabs>
