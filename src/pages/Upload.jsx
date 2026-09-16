@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Upload as UploadIcon, FileUp, Loader2, CheckCircle2, BookOpen, FileText, Megaphone, GraduationCap, X } from 'lucide-react';
+import { Upload as UploadIcon, FileUp, Loader2, CheckCircle2, BookOpen, FileText, Megaphone, GraduationCap, Link as LinkIcon, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,7 @@ export default function Upload() {
   const [processing, setProcessing] = useState(false);
   const [done, setDone] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, name: '' });
+  const [linkUrl, setLinkUrl] = useState('');
 
   const { data: courses = [] } = useQuery({
     queryKey: ['courses'],
@@ -44,6 +45,7 @@ export default function Upload() {
   });
 
   const handleUpload = async () => {
+    if (activeTab === 'link') return handleLinkUpload();
     if (!files.length) { toast.error('Please select at least one file.'); return; }
 
     setProcessing(true);
@@ -389,13 +391,65 @@ export default function Upload() {
     toast.success(`Gradebook imported! ${updated} assignment${updated !== 1 ? 's' : ''} updated, ${created} new assignment${created !== 1 ? 's' : ''} created.`);
   };
 
+  const processLink = async (linkUrl, targetCourseId) => {
+    setProgress({ current: 1, total: 1, name: linkUrl });
+    const res = await base44.functions.invoke('fetchUrlContent', { url: linkUrl });
+    const fetched = res.data;
+    if (!fetched?.content) throw new Error('Could not fetch content from that link.');
+
+    const safeName = (fetched.title || 'link').replace(/[^a-z0-9]+/gi, '-').slice(0, 40);
+    const file = new File([fetched.content], `${safeName}.md`, { type: 'text/markdown' });
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+
+    const summaryRes = await base44.integrations.Core.InvokeLLM({
+      prompt: `Summarize the following content from a linked source in 3-5 sentences, highlighting the key ideas.\n\nTitle: ${fetched.title || ''}\n\n${fetched.content}`,
+    });
+    const summary = typeof summaryRes === 'string' ? summaryRes : summaryRes?.response || '';
+
+    await base44.entities.Document.create({
+      title: fetched.title || linkUrl,
+      course_id: targetCourseId || undefined,
+      type: 'notes',
+      file_url,
+      content_summary: summary || undefined,
+      status: 'processed',
+    });
+    queryClient.invalidateQueries();
+  };
+
+  const handleLinkUpload = async () => {
+    if (!linkUrl.trim()) { toast.error('Please enter a URL.'); return; }
+    if (!courseId || (courseId === 'new' && !newCourseName)) { toast.error('Please select a course.'); return; }
+    setProcessing(true);
+    setDone(false);
+    try {
+      let targetCourseId = courseId;
+      if (courseId === 'new' && newCourseName) {
+        const newCourse = await base44.entities.Course.create({ name: newCourseName });
+        targetCourseId = newCourse.id;
+        queryClient.invalidateQueries({ queryKey: ['courses'] });
+      }
+      await processLink(linkUrl.trim(), targetCourseId);
+      toast.success('Link analyzed and saved!');
+      setLinkUrl('');
+      setDone(true);
+      setTimeout(() => setDone(false), 3000);
+    } catch (err) {
+      console.error('Link upload failed:', err);
+      toast.error(err.message || 'Failed to analyze link.');
+    } finally {
+      setProcessing(false);
+      setProgress({ current: 0, total: 0, name: '' });
+    }
+  };
+
   return (
     <div>
       <PageHeader title="Upload" subtitle="Upload syllabi, announcements, and course materials" />
 
       <Card className="max-w-2xl mx-auto p-6 md:p-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-4 mb-6">
+          <TabsList className="grid grid-cols-5 mb-6">
             <TabsTrigger value="syllabus" className="gap-1.5 text-xs sm:text-sm">
               <BookOpen className="w-4 h-4" /> Syllabus
             </TabsTrigger>
@@ -407,6 +461,9 @@ export default function Upload() {
             </TabsTrigger>
             <TabsTrigger value="gradebook" className="gap-1.5 text-xs sm:text-sm">
               <GraduationCap className="w-4 h-4" /> Gradebook
+            </TabsTrigger>
+            <TabsTrigger value="link" className="gap-1.5 text-xs sm:text-sm">
+              <LinkIcon className="w-4 h-4" /> Link
             </TabsTrigger>
           </TabsList>
 
@@ -428,6 +485,11 @@ export default function Upload() {
           <TabsContent value="gradebook">
             <p className="text-sm text-muted-foreground mb-6">
               Upload a gradebook PDF or screenshot. We'll extract every grade and match it to your existing assignments — or create new ones if they're not in the system yet.
+            </p>
+          </TabsContent>
+          <TabsContent value="link">
+            <p className="text-sm text-muted-foreground mb-6">
+              Paste a link to a YouTube video or article. We'll fetch the content (transcript or page text), summarize it, and save it as a document you can view and search.
             </p>
           </TabsContent>
         </Tabs>
@@ -454,7 +516,13 @@ export default function Upload() {
             </motion.div>
           )}
 
-          {/* File Upload Zone */}
+          {activeTab === 'link' ? (
+            <div className="space-y-2">
+              <Label>Link URL</Label>
+              <Input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://youtube.com/watch?v=... or article URL" />
+              <p className="text-xs text-muted-foreground">We'll fetch and analyze the content at this link.</p>
+            </div>
+          ) : (
           <div className="space-y-2">
             <Label>Files {files.length > 0 && `(${files.length})`}</Label>
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all">
@@ -503,11 +571,12 @@ export default function Upload() {
               </div>
             )}
           </div>
+          )}
 
           {/* Upload Button */}
           <Button
             onClick={handleUpload}
-            disabled={processing || !files.length || (!courseId || (courseId === 'new' && !newCourseName))}
+            disabled={processing || (activeTab === 'link' ? !linkUrl.trim() : !files.length) || (!courseId || (courseId === 'new' && !newCourseName))}
             className="w-full gap-2"
             size="lg"
           >
@@ -524,7 +593,7 @@ export default function Upload() {
             ) : (
               <>
                 <UploadIcon className="w-4 h-4" />
-                {files.length > 1 ? `Upload & Process ${files.length} Files` : 'Upload & Process'}
+                {activeTab === 'link' ? 'Analyze Link' : files.length > 1 ? `Upload & Process ${files.length} Files` : 'Upload & Process'}
               </>
             )}
           </Button>

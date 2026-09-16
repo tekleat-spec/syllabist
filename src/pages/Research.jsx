@@ -5,6 +5,7 @@ import { Send, Loader2, Paperclip, X, FlaskConical, BookOpen, Scale, GraduationC
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import TutorMessage from '@/components/tutor/TutorMessage';
+import { fetchLinkContents } from '@/lib/linkContent';
 
 const CITATION_STYLES = [
   { id: 'MLA', label: 'MLA', icon: BookOpen, description: 'Humanities' },
@@ -128,6 +129,7 @@ export default function Research() {
     setLoading(true);
 
     const materialsCtx = buildMaterialsContext();
+    const linkCtx = await fetchLinkContents(text);
 
     const history = messages
       .filter(m => m.role !== 'system')
@@ -154,6 +156,7 @@ ${citationStyle === 'BlueBook' ? `
 - Footnote citations where appropriate` : ''}
 
 ${materialsCtx ? `## Student's Course Materials (incorporate as appropriate):\n${materialsCtx}\n---` : ''}
+${linkCtx ? `## Linked Content (fetched from URLs in the user's message):\n${linkCtx}\n---` : ''}
 
 ## YOUR ROLE AND PROCESS:
 

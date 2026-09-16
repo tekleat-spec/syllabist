@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Send, BookOpen, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TutorMessage from '@/components/tutor/TutorMessage';
+import { fetchLinkContents } from '@/lib/linkContent';
 
 const WELCOME = {
   role: 'assistant',
@@ -63,9 +64,12 @@ export default function DocumentQA() {
     // Optimistically show user message
     setMessages(prev => [...prev, { role: 'user', content: text }]);
 
+    const linkCtx = await fetchLinkContents(text);
+    const enrichedContent = linkCtx ? `${text}\n\n${linkCtx}` : text;
+
     await base44.agents.addMessage(
       { id: conversationId },
-      { role: 'user', content: text }
+      { role: 'user', content: enrichedContent }
     );
 
     setLoading(false);

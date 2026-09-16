@@ -9,7 +9,22 @@ import { Loader2, Upload } from 'lucide-react';
 
 async function analyzeItem(item) {
   const fileUrls = item.file_url ? [item.file_url] : [];
-  const urlContext = item.source_url ? `URL to analyze: ${item.source_url}` : '';
+  let urlContent = '';
+  let useInternet = false;
+  if (item.source_url) {
+    try {
+      const res = await base44.functions.invoke('fetchUrlContent', { url: item.source_url });
+      urlContent = res.data?.content || '';
+    } catch (e) {
+      console.error('fetchUrlContent failed:', e);
+    }
+    useInternet = !urlContent;
+  }
+  const urlContext = item.source_url
+    ? (urlContent
+      ? `===FETCHED LINK CONTENT (from ${item.source_url})===\n${urlContent}`
+      : `URL to analyze: ${item.source_url}`)
+    : '';
 
   const prompt = `You are an expert academic document analyst. You are reading a document titled "${item.title}".
 
@@ -43,7 +58,6 @@ If STUDY MATERIAL: Extract all important facts, concepts, definitions, arguments
 If ASSIGNMENT INSTRUCTIONS: A step-by-step action plan for completing and submitting the assignment. Each step should map directly to an explicit task or deliverable stated in the document.
 If STUDY MATERIAL: A structured hierarchical outline (I, II, III / A, B, C) reflecting the actual content structure.`;
 
-  const useInternet = !!item.source_url;
   const result = await base44.integrations.Core.InvokeLLM({
     prompt,
     file_urls: fileUrls.length > 0 ? fileUrls : undefined,
